@@ -1,0 +1,19 @@
+{
+  "wifi_ssid": "YOUR_WIFI_SSID",
+  "wifi_password": "YOUR_WIFI_PASSWORD",
+  "server_url": "http://192.168.1.100:5000/data",
+  "blynk_token": "vKF0tDJwkknKj38WjeibW4rqdjr5pNUy",
+  "blynk_template_id": "TMPL66fm4nCL-",
+  "blynk_template_name": "MILES Air Quality Prediction System",
+  "blynk_server": "blynk.cloud",
+  "sampling_interval": 15,
+  "pm25_threshold": 35,
+  "pm10_threshold": 50,
+  "gas_threshold_safe": 250,
+  "gas_threshold_caution": 400,
+  "temp_min": 18,
+  "temp_max": 30,
+  "enable_local_alarm": true,
+  "enable_wifi": true,
+  "enable_sd_card": true
+}
