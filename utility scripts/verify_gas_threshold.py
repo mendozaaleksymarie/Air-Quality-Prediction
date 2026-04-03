@@ -5,25 +5,25 @@ df = pd.read_csv('dataset/combined_data.csv')
 print('=' * 60)
 print('GAS THRESHOLD VERIFICATION')
 print('=' * 60)
-print('\nDefined Thresholds:')
-print('  Safe:    100-250 (no alarm)')
-print('  Caution: 250-400 (no alarm)')
-print('  Hazard:  >400    (ALARM TRIGGERED)')
-print('\nCode Implementation: Alarm when gas > 400')
+print('\nDefined Thresholds (NIOSH/OSHA Standards):')
+print('  Safe:    ≤130 ppm (no alarm)')
+print('  Caution: 131-175 ppm (no alarm)')
+print('  Hazard:  ≥176 ppm    (ALARM TRIGGERED)')
+print('\nCode Implementation: Alarm when gas ≥ 176 ppm')
 
 print('\n' + '=' * 60)
 print('DATA ANALYSIS')
 print('=' * 60)
 
 # Categorize gas readings
-safe = df[df['gas'] <= 250]
-caution = df[(df['gas'] > 250) & (df['gas'] <= 400)]
-hazard = df[df['gas'] > 400]
+safe = df[df['gas'] <= 130]
+caution = df[(df['gas'] > 130) & (df['gas'] < 176)]
+hazard = df[df['gas'] >= 176]
 
 print(f'\n📊 Gas Level Distribution:')
-print(f'  Safe (≤250):      {len(safe):3d} records ({len(safe)/len(df)*100:.1f}%)')
-print(f'  Caution (250-400): {len(caution):3d} records ({len(caution)/len(df)*100:.1f}%)')
-print(f'  Hazard (>400):     {len(hazard):3d} records ({len(hazard)/len(df)*100:.1f}%)')
+print(f'  Safe (≤130):      {len(safe):3d} records ({len(safe)/len(df)*100:.1f}%)')
+print(f'  Caution (131-175): {len(caution):3d} records ({len(caution)/len(df)*100:.1f}%)')
+print(f'  Hazard (≥176):     {len(hazard):3d} records ({len(hazard)/len(df)*100:.1f}%)')
 
 print(f'\n⚠️  Alarms in Each Category:')
 print(f'  Safe range:    {safe["alarm_status"].sum()}/{len(safe)} alarms (from other sensors)')
@@ -31,7 +31,7 @@ print(f'  Caution range: {caution["alarm_status"].sum()}/{len(caution)} alarms (
 print(f'  Hazard range:  {hazard["alarm_status"].sum()}/{len(hazard)} alarms')
 
 print('\n' + '=' * 60)
-print('HAZARD LEVEL GAS READINGS (>400)')
+print('HAZARD LEVEL GAS READINGS (≥176 ppm)')
 print('=' * 60)
 if len(hazard) > 0:
     print(hazard[['created_at', 'gas', 'co', 'temp', 'pm2_5', 'alarm_status']])
@@ -39,7 +39,7 @@ else:
     print('✓ No hazard-level gas readings found')
 
 print('\n' + '=' * 60)
-print('CAUTION LEVEL GAS READINGS (250-400)')
+print('CAUTION LEVEL GAS READINGS (131-175 ppm)')
 print('=' * 60)
 if len(caution) > 0:
     print(caution[['created_at', 'gas', 'co', 'temp', 'pm2_5', 'alarm_status']])
@@ -51,11 +51,11 @@ print('VERIFICATION RESULTS')
 print('=' * 60)
 
 # Check if all hazard gas levels trigger alarm
-hazard_with_alarm = df[(df['gas'] > 400) & (df['alarm_status'] == 1)]
-hazard_no_alarm = df[(df['gas'] > 400) & (df['alarm_status'] == 0)]
+hazard_with_alarm = df[(df['gas'] >= 176) & (df['alarm_status'] == 1)]
+hazard_no_alarm = df[(df['gas'] >= 176) & (df['alarm_status'] == 0)]
 
-print(f'\nGas >400 with alarm:    {len(hazard_with_alarm)}/{len(hazard)} records')
-print(f'Gas >400 without alarm: {len(hazard_no_alarm)}/{len(hazard)} records')
+print(f'\nGas ≥176 with alarm:    {len(hazard_with_alarm)}/{len(hazard)} records')
+print(f'Gas ≥176 without alarm: {len(hazard_no_alarm)}/{len(hazard)} records')
 
 # Check if caution/safe levels incorrectly trigger alarm due to gas alone
 caution_alarm_only_gas = caution[

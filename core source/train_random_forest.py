@@ -101,11 +101,11 @@ def preprocess_data(df):
         temp_col = [c for c in df.columns if 'temp' in c.lower()]
         
         if pm25_col:
-            df.loc[df[pm25_col[0]] > 35, 'alarm'] = 1
+            df.loc[df[pm25_col[0]] > 100, 'alarm'] = 1
         if pm10_col:
-            df.loc[df[pm10_col[0]] > 50, 'alarm'] = 1
+            df.loc[df[pm10_col[0]] > 230, 'alarm'] = 1
         if temp_col:
-            df.loc[(df[temp_col[0]] > 30) | (df[temp_col[0]] < 18), 'alarm'] = 1
+            df.loc[(df[temp_col[0]] > 35) | (df[temp_col[0]] < 0), 'alarm'] = 1
         
         target_column = 'alarm'
     

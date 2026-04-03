@@ -89,12 +89,12 @@ def merge_sensor_data():
     def calculate_alarm(row):
         """
         Determine alarm status based on hazardous level thresholds:
-        - PM2.5 > 100
-        - PM10 > 230
-        - Temperature > 35
-        - Humidity > 70
-        - Gas (MQ-2) > 400 (Raw ADC range)
-        - Carbon Monoxide > 30 (if available)
+        - PM2.5 > 100 μg/m³
+        - PM10 > 230 μg/m³
+        - Temperature > 35 °C
+        - Humidity > 70 %
+        - Gas (MQ-2) ≥ 176 ppm (Smoke/Combustible Gases)
+        - Carbon Monoxide > 30 ppm (RA 8749 IRR)
         """
         alarm = 0
         
@@ -106,7 +106,7 @@ def merge_sensor_data():
             alarm = 1
         elif pd.notna(row.get('humidity')) and row['humidity'] > 70:
             alarm = 1
-        elif pd.notna(row.get('gas')) and row['gas'] > 400:
+        elif pd.notna(row.get('gas')) and row['gas'] >= 176:
             alarm = 1
         elif pd.notna(row.get('co')) and row['co'] > 30:
             alarm = 1

@@ -57,10 +57,14 @@ def load_config():
             'blynk_token': 'YOUR_BLYNK_TOKEN',
             'blynk_server': 'blynk.cloud',
             'sampling_interval': 15,  # seconds
-            'pm25_threshold': 35,
-            'pm10_threshold': 50,
-            'temp_min': 18,
-            'temp_max': 30,
+            'pm25_threshold': 100,
+            'pm10_threshold': 230,
+            'co_threshold_safe': 9,
+            'co_threshold_caution': 30,
+            'gas_threshold_safe': 130,
+            'gas_threshold_caution': 175,
+            'temp_min': 0,
+            'temp_max': 35,
             'enable_local_alarm': True,
             'enable_wifi': True,
             'enable_sd_card': True
