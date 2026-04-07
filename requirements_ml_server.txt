@@ -1,0 +1,18 @@
+# ML Inference Server Requirements
+# Install with: pip install -r requirements_ml_server.txt
+
+# Core Framework
+Flask==2.3.0
+flask-cors==4.0.0
+
+# Data Processing
+numpy==2.2.0
+scikit-learn==1.8.0
+pandas==2.3.3
+
+# Serialization
+joblib==1.4.0
+
+# Optional but Recommended
+python-dotenv==1.0.0  # For environment variables (WiFi credentials)
+requests==2.31.0      # For testing the API
