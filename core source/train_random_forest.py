@@ -82,6 +82,111 @@ MODEL_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'rando
 SCALER_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'scaler.pkl')
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# TRAINING SIMULATION & FIELD DEPLOYMENT REMARKS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SCENARIO_REMARKS = {
+    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: NORMAL OPERATIONS'},
+    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: WEAR FACE MASK'},
+    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: MISTING DETECTED'},
+    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: EVACUATE AREA NOW'},
+    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: CHECK FOR FIRE'},
+    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: IMPROVE VENTILATION'},
+    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: COOL HUMID AIR'},
+    # SCENARIO 8: FIELD DEPLOYMENT
+    # Field deployment data uses DYNAMIC remarks from sensor escalation/combination logic
+    # Do NOT use generic class-based remarks - remarks are derived from actual sensor patterns detected
+    # (Misting detection, sensor combinations, wet-bulb escalation, single hazardous sensors)
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SENSOR COMBINATION ESCALATION REMARKS (Multi-Sensor Logic)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SENSOR_COMBINATION_REMARKS = {
+    'all_safe': {
+        'class': 0,
+        'remark': 'SAFE: ALL SENSORS NORMAL',
+        'worker_action': 'Continue operations normally'
+    },
+    'single_pm25': {
+        'class': 1,
+        'remark': 'CAUTION: ELEVATED DUST',
+        'worker_action': 'Monitor air quality, consider mask if heavy work'
+    },
+    'single_pm10': {
+        'class': 1,
+        'remark': 'CAUTION: COARSE PARTICLES',
+        'worker_action': 'Increase ventilation, monitor conditions'
+    },
+    'single_gas': {
+        'class': 1,
+        'remark': 'CAUTION: COMBUSTIBLES DETECTED',
+        'worker_action': 'Check for smoke sources, increase ventilation'
+    },
+    'single_co': {
+        'class': 1,
+        'remark': 'CAUTION: ELEVATED CO',
+        'worker_action': 'Check for exhaust/fire, ventilate area'
+    },
+    'pm25_pm10': {
+        'class': 2,
+        'remark': 'HAZARDOUS: DUST STORM',
+        'worker_action': 'Wear N95 mask immediately, minimize exposure'
+    },
+    'pm25_gas': {
+        'class': 2,
+        'remark': 'HAZARDOUS: SMOKE DETECTED',
+        'worker_action': 'Check for fire/equipment failure, evacuate if needed'
+    },
+    'pm25_co': {
+        'class': 2,
+        'remark': 'HAZARDOUS: FIRE HAZARD',
+        'worker_action': 'Verify fire status, prepare evacuation'
+    },
+    'gas_co': {
+        'class': 2,
+        'remark': 'HAZARDOUS: CHEMICAL VAPORS',
+        'worker_action': 'Evacuate area, call hazmat or emergency'
+    },
+    'pm10_gas': {
+        'class': 1,
+        'remark': 'CAUTION: COMBINED HAZARD RISKING',
+        'worker_action': 'Increase monitoring, reduce work intensity'
+    },
+    'pm10_co': {
+        'class': 1,
+        'remark': 'CAUTION: CHECK FOR FIRE',
+        'worker_action': 'Investigate fire potential, ventilate'
+    },
+    'three_sensors': {
+        'class': 2,
+        'remark': 'HAZARDOUS: MULTI-SENSOR ALERT',
+        'worker_action': 'MANDATORY PROTECTIVE ACTION - Mask/Ventilate/Evacuate'
+    },
+    'single_pm25_hazardous': {
+        'class': 2,
+        'remark': 'HAZARDOUS: EXTREME DUST - USE RESPIRATOR, RELOCATE',
+        'worker_action': 'IMMEDIATE: Stop dust work, use HEPA/N95+ mask, move to ventilated area'
+    },
+    'single_pm10_hazardous': {
+        'class': 2,
+        'remark': 'HAZARDOUS: PARTICLES CRITICAL - SUPPRESS DUST SOURCE',
+        'worker_action': 'IMMEDIATE: Activate dust suppression (water spray), increase ventilation'
+    },
+    'single_gas_hazardous': {
+        'class': 2,
+        'remark': 'HAZARDOUS: COMBUSTIBLES EXTREME - IDENTIFY SOURCE NOW',
+        'worker_action': 'IMMEDIATE: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES'
+    },
+    'single_co_hazardous': {
+        'class': 2,
+        'remark': 'HAZARDOUS: CO CRITICAL - CHECK MACHINERY/ENGINES',
+        'worker_action': 'IMMEDIATE: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind'
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # WET-BULB TEMPERATURE CALCULATION (Heat Stress Indicator)
 # ═══════════════════════════════════════════════════════════════════════════════
 # Reference: Stull, R. (2011). Wet-Bulb Temperature from Relative Humidity and Air Temperature.
@@ -151,6 +256,84 @@ def compute_wet_bulb_temperature(temp_c, humidity_rh):
     
     except (TypeError, ValueError):
         return np.nan
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REMARKS HELPER FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_scenario_remark(scenario_num):
+    """Get remark for a specific MILES training scenario (1-8)"""
+    if scenario_num not in SCENARIO_REMARKS:
+        return None
+    
+    scenario_data = SCENARIO_REMARKS[scenario_num]
+    
+    if scenario_num == 8:
+        return scenario_data  # Field deployment has class_remarks
+    
+    return scenario_data.get('remark', 'N/A')
+
+def get_field_class_remark(class_label):
+    """Get remark for field deployment (Scenario 8) based on class 0/1/2"""
+    field_remarks = SCENARIO_REMARKS[8].get('class_remarks', {})
+    return field_remarks.get(class_label, 'UNKNOWN')
+
+def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_status):
+    """
+    Determine which sensor combination remark applies
+    Returns: (combo_key, remark_dict)
+    """
+    sensors_in_caution = sum([
+        pm25_status == 'caution',
+        pm10_status == 'caution',
+        gas_status == 'caution',
+        co_status == 'caution'
+    ])
+    
+    sensors_in_hazardous = sum([
+        pm25_status == 'hazardous',
+        pm10_status == 'hazardous',
+        gas_status == 'hazardous',
+        co_status == 'hazardous'
+    ])
+    
+    # If any hazardous
+    if sensors_in_hazardous >= 1:
+        return 'any_hazardous', SENSOR_COMBINATION_REMARKS['any_hazardous']
+    
+    # If all safe
+    if sensors_in_caution == 0:
+        return 'all_safe', SENSOR_COMBINATION_REMARKS['all_safe']
+    
+    # Check specific two-sensor dangerous combinations
+    if pm25_status == 'caution' and pm10_status == 'caution':
+        return 'pm25_pm10', SENSOR_COMBINATION_REMARKS['pm25_pm10']
+    if pm25_status == 'caution' and gas_status == 'caution':
+        return 'pm25_gas', SENSOR_COMBINATION_REMARKS['pm25_gas']
+    if pm25_status == 'caution' and co_status == 'caution':
+        return 'pm25_co', SENSOR_COMBINATION_REMARKS['pm25_co']
+    if gas_status == 'caution' and co_status == 'caution':
+        return 'gas_co', SENSOR_COMBINATION_REMARKS['gas_co']
+    if pm10_status == 'caution' and gas_status == 'caution':
+        return 'pm10_gas', SENSOR_COMBINATION_REMARKS['pm10_gas']
+    if pm10_status == 'caution' and co_status == 'caution':
+        return 'pm10_co', SENSOR_COMBINATION_REMARKS['pm10_co']
+    
+    # If three or more in caution
+    if sensors_in_caution >= 3:
+        return 'three_sensors', SENSOR_COMBINATION_REMARKS['three_sensors']
+    
+    # Single sensor in caution
+    if pm25_status == 'caution':
+        return 'single_pm25', SENSOR_COMBINATION_REMARKS['single_pm25']
+    if pm10_status == 'caution':
+        return 'single_pm10', SENSOR_COMBINATION_REMARKS['single_pm10']
+    if gas_status == 'caution':
+        return 'single_gas', SENSOR_COMBINATION_REMARKS['single_gas']
+    if co_status == 'caution':
+        return 'single_co', SENSOR_COMBINATION_REMARKS['single_co']
+    
+    return 'all_safe', SENSOR_COMBINATION_REMARKS['all_safe']
 
 # Status to alarm label mapping
 # Maps raw simulation/field data labels to 3-class system (0=Safe, 1=Caution, 2=Hazardous)
@@ -522,6 +705,9 @@ def apply_misting_detection(row):
     
     # MISTING SIGNATURE: Extreme humidity + normal gas = water droplets, not pollution
     if humidity >= 95 and gas < 100:
+        # Add misting remark
+        row['_sensor_combo_key'] = 'misting_detected'
+        row['_sensor_combo_remark'] = get_scenario_remark(3)  # Scenario 3: MISTING
         return 0  # Safe - misting detected, water droplets not real hazard
     
     return None  # Not a misting case - proceed to multi-sensor escalation
@@ -612,10 +798,9 @@ def apply_multi_sensor_escalation(row):
     co_caution_threshold = 10         # Caution range: 10-30
     co_hazardous_threshold = 31       # Hazardous: > 30
     
-    # Count which hazard sensors are in caution/hazardous range
+    # Count which hazard sensors are in caution range
     # TEMP AND HUMIDITY ARE EXCLUDED - they are display-only and never classify
     sensors_in_caution = []
-    sensors_in_hazardous = []
     
     # Evaluate each HAZARD sensor against its threshold
     pm2_5_caution = pm2_5 >= pm2_5_caution_threshold and pm2_5 < pm2_5_hazardous_threshold
@@ -630,6 +815,44 @@ def apply_multi_sensor_escalation(row):
     co_caution = co >= co_caution_threshold and co < co_hazardous_threshold
     co_hazardous = co >= co_hazardous_threshold
     
+    # ════════════════════════════════════════════════════════════════════════════
+    # CRITICAL SAFETY CHECK: ANY SINGLE SENSOR IN HAZARDOUS RANGE → IMMEDIATELY HAZARDOUS
+    # ════════════════════════════════════════════════════════════════════════════
+    # This is a SAFETY PRIORITY rule: if we detect ANY hazardous reading, classify as hazardous
+    # Do not wait for multi-sensor confirmation - single sensor hazard is dangerous enough
+    # Construction-site-specific remarks guide workers to practical protective actions
+    
+    if pm2_5_hazardous:
+        row['_sensor_combo_key'] = 'single_pm25_hazardous'
+        row['_sensor_combo_remark'] = SENSOR_COMBINATION_REMARKS['single_pm25_hazardous']['remark']
+        return 2
+    
+    if pm10_hazardous:
+        row['_sensor_combo_key'] = 'single_pm10_hazardous'
+        row['_sensor_combo_remark'] = SENSOR_COMBINATION_REMARKS['single_pm10_hazardous']['remark']
+        return 2
+    
+    if gas_hazardous:
+        row['_sensor_combo_key'] = 'single_gas_hazardous'
+        row['_sensor_combo_remark'] = SENSOR_COMBINATION_REMARKS['single_gas_hazardous']['remark']
+        return 2
+    
+    if co_hazardous:
+        row['_sensor_combo_key'] = 'single_co_hazardous'
+        row['_sensor_combo_remark'] = SENSOR_COMBINATION_REMARKS['single_co_hazardous']['remark']
+        return 2
+    
+    # Determine sensor status classification for remarks lookup (for caution/safe states)
+    pm25_status = 'caution' if pm2_5_caution else 'safe'
+    pm10_status = 'caution' if pm10_caution else 'safe'
+    gas_status = 'caution' if gas_caution else 'safe'
+    co_status = 'caution' if co_caution else 'safe'
+    
+    # Get sensor combination remark for logging (caution/safe combinations)
+    combo_key, combo_remark = get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_status)
+    row['_sensor_combo_key'] = combo_key
+    row['_sensor_combo_remark'] = combo_remark.get('remark', 'N/A')
+    
     # Build list of sensors in caution state (only hazard sensors)
     if pm2_5_caution:
         sensors_in_caution.append('pm2_5')
@@ -639,23 +862,6 @@ def apply_multi_sensor_escalation(row):
         sensors_in_caution.append('gas')
     if co_caution:
         sensors_in_caution.append('co')
-    
-    # Build list of sensors in hazardous state
-    if pm2_5_hazardous:
-        sensors_in_hazardous.append('pm2_5')
-    if pm10_hazardous:
-        sensors_in_hazardous.append('pm10')
-    if gas_hazardous:
-        sensors_in_hazardous.append('gas')
-    if co_hazardous:
-        sensors_in_hazardous.append('co')
-    
-    # ════════════════════════════════════════════════════════════════════════════
-    # BASELINE: Check for any hazardous readings first
-    # Any single sensor in HAZARDOUS range → Class 2
-    # ════════════════════════════════════════════════════════════════════════════
-    if len(sensors_in_hazardous) >= 1:
-        return 2  # Hazardous - at least one sensor reading is hazardous
     
     # ════════════════════════════════════════════════════════════════════════════
     # NO HAZARD SENSORS: All hazard sensors in safe range → SAFE
@@ -683,20 +889,19 @@ def apply_multi_sensor_escalation(row):
         
         # DANGEROUS COMBINATIONS → HAZARDOUS (from MILES Escalation Logic)
         # These multi-sensor patterns indicate confirmed environmental hazards
+        # Based on construction site sensor escalation analysis:
         dangerous_pairs = [
-            {'pm2_5', 'gas'},       # Smoke + combustible gas = active combustion/fire
-            {'pm2_5', 'co'},        # Fine dust + CO = fire or exhaust hazard
-            {'pm10', 'gas'},        # Coarse dust + combustible gas = smoke event
-            {'pm10', 'co'},         # Coarse dust + CO = significant hazard
-            {'gas', 'co'},          # Both gas sensors elevated = chemical/combustion hazard
+            {'pm2_5', 'gas'},       # Smoke + combustible gas = active combustion/fire (Scenario 4/5)
+            {'pm2_5', 'co'},        # Fine dust + CO = fire or exhaust hazard (Scenario 4)
+            {'gas', 'co'},          # Both gas sensors elevated = chemical/combustion hazard (Scenario 6)
         ]
         
         for dangerous in dangerous_pairs:
             if sensor_pair == dangerous:
                 return 2  # Hazardous - confirmed dangerous sensor combination
         
-        # All other two-sensor combinations in caution range → CAUTION
-        # This includes: PM2.5 + PM10 (particle hazard requires monitoring but not immediate escalation)
+        # PM10 + Gas or PM10 + CO: Less dangerous than PM2.5 + gas/CO but still concerning
+        # PM2.5 + PM10: Particle hazard (pure dust scenario) - benefits from monitoring, not immediate escalation
         # Construction sites often experience simultaneous PM2.5 and PM10 elevation from dust
         # These remain Caution-class requiring monitoring, not Hazardous-class escalation
         return 1  # Caution - two sensors elevated but non-dangerous combination
@@ -722,6 +927,38 @@ def apply_multi_sensor_escalation(row):
     # ════════════════════════════════════════════════════════════════════════════
     
     return air_quality_class
+
+def get_dynamic_remark_for_construction_site(row, class_label):
+    """
+    DYNAMIC REMARKS FOR CONSTRUCTION SITES (Scenario 8 - Real World)
+    
+    Instead of fixed generic remarks, assign the most appropriate, specific remark
+    based on what the sensors actually detected. This provides workers with actionable
+    guidance that matches their actual environment.
+    
+    PRIORITY:
+    1. If misting was detected → Use misting remark (Scenario 3)
+    2. If sensor combination pattern detected → Use specific sensor remark
+    3. If matches training simulation pattern → Use that simulation's remark
+    4. Fallback to class-based remark for field deployment
+    """
+    
+    # Check if misting was detected (Scenario 3)
+    if row.get('_sensor_combo_key') == 'misting_detected':
+        return get_scenario_remark(3)  # "SAFE: MISTING DETECTED"
+    
+    # Use sensor combination remark if available
+    sensor_combo_remark = row.get('_sensor_combo_remark', '')
+    if sensor_combo_remark and sensor_combo_remark != 'N/A':
+        return sensor_combo_remark
+    
+    # Fallback to class-based field deployment remarks
+    field_remarks = {
+        0: 'SAFE: CONTINUE OPERATIONS',
+        1: 'CAUTION: MONITOR CONDITIONS',
+        2: 'HAZARDOUS: TAKE ACTION'
+    }
+    return field_remarks.get(class_label, 'UNKNOWN')
 
 def apply_intelligent_labeling(df):
     """
@@ -800,15 +1037,69 @@ def apply_intelligent_labeling(df):
     # Create new alarm_status based on multi-sensor rules
     df['alarm_status'] = df.apply(apply_multi_sensor_escalation, axis=1)
     
+    # Extract and add remarks from sensor combination analysis
+    df['_sensor_combo_key'] = df.apply(lambda row: row.get('_sensor_combo_key', 'unknown'), axis=1)
+    df['_sensor_combo_remark'] = df.apply(lambda row: row.get('_sensor_combo_remark', 'N/A'), axis=1)
+    
+    print("\n" + "="*70)
+    print("CLASS DISTRIBUTION & DYNAMIC CONSTRUCTION SITE REMARKS")
+    print("="*70)
     print("\nClass distribution after intelligent labeling:")
     print(df['alarm_status'].value_counts().sort_index())
     
-    # Breakdown by class
+    # Breakdown by class with dynamic remarks based on sensor patterns
+    print("\n" + "-"*70)
     for cls in [0, 1, 2]:
         class_rows = df[df['alarm_status'] == cls]
         pct = 100 * len(class_rows) / len(df)
         class_name = ['Safe', 'Caution', 'Hazardous'][cls]
-        print(f"  {class_name} ({cls}): {len(class_rows)} rows ({pct:.1f}%)")
+        
+        print(f"\n{class_name.upper()} ({cls}): {len(class_rows)} rows ({pct:.1f}%)")
+        
+        # Show most common specific remarks for this class
+        # These are sensor-detection-driven, context-aware remarks
+        top_combos = class_rows['_sensor_combo_remark'].value_counts().head(5)
+        if len(top_combos) > 0:
+            print(f"  Most Common Remarks in {class_name}:")
+            for combo_remark, count in top_combos.items():
+                if combo_remark != 'N/A':
+                    pct_combo = 100 * count / len(class_rows)
+                    print(f"    - {combo_remark}")
+                    print(f"      ({count} rows, {pct_combo:.1f}% of {class_name})")
+    
+    print("\n" + "="*70)
+    print("TRAINING SIMULATION REMARKS (Scenarios 1-7)")
+    print("="*70)
+    print("These remarks teach the model what different environmental conditions mean:")
+    print()
+    for scenario_num in range(1, 8):
+        scenario_data = get_scenario_remark(scenario_num)
+        if scenario_data:
+            scenario_info = SCENARIO_REMARKS[scenario_num]
+            print(f"{scenario_num}. {scenario_info.get('name', 'Unknown')}")
+            print(f"   {scenario_data}")
+    
+    print("\n" + "="*70)
+    print("SENSOR ESCALATION LOGIC (Real-World Construction Site Decision Rules)")
+    print("="*70)
+    print("The model uses these patterns to classify real construction site readings:")
+    print()
+    print("DANGEROUS COMBINATIONS (>> Hazardous):")
+    print("  - PM2.5 + Gas = SMOKE DETECTED (active combustion)")
+    print("  - PM2.5 + CO = FIRE HAZARD (fire signature)")
+    print("  - Gas + CO = CHEMICAL VAPORS (VOC hazard)")
+    print("  - PM2.5 + PM10 = DUST STORM (both particle types)")
+    print("  - 3+ sensors = MULTI-SENSOR ALERT (critical hazard)")
+    print()
+    print("CAUTION COMBINATIONS (>> Caution):")
+    print("  - Single sensors in elevated range = CAUTION (monitor)")
+    print("  - PM10 + Gas = COMBINED HAZARD RISKING (less acute)")
+    print("  - PM10 + CO = CHECK FOR FIRE (developing concern)")
+    print()
+    print("SAFE CONDITIONS (>> Safe):")
+    print("  - All sensors normal = ALL SENSORS NORMAL")
+    print("  - Extreme PM + Extreme humidity + normal gas = MISTING DETECTED (false alarm defense)")
+    print()
     
     return df
 
