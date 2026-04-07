@@ -297,21 +297,31 @@ def trigger_alarm(duration_ms=2000):
         time.sleep_ms(duration_ms)
         buzzer.off()
 
-def check_alarm_conditions(pm25, pm10, temp, mq2=None):
-    """Check if alarm conditions are met"""
-    alarm = False
+def check_alarm_conditions_deprecated(pm25, pm10, temp, mq2=None):
+    """
+    DEPRECATED: Old threshold-based alarm logic
     
-    if pm25 and pm25 > config['pm25_threshold']:
+    Now replaced by ML-based predictions from ml_inference_server.py
+    This function is kept for reference/debugging only.
+    
+    Use main() loop instead which calls send_to_ml_server() for predictions.
+    """
+    alarm = False
+    reason = ""
+    
+    # Local fallback thresholds (if ML server unavailable)
+    if pm25 and pm25 > 100:  # WHO guideline
         alarm = True
-    if pm10 and pm10 > config['pm10_threshold']:
+        reason = f"PM2.5 high: {pm25} μg/m³"
+    if pm10 and pm10 > 150:  # WHO guideline
         alarm = True
-    if mq2 and mq2 > config.get('gas_threshold_caution', 400):
-        alarm = True  # Hazard level > 400
+        reason = f"PM10 high: {pm10} μg/m³"
     if temp:
-        if temp > config['temp_max'] or temp < config['temp_min']:
+        if temp > 40 or temp < 5:
             alarm = True
+            reason = f"Temperature extreme: {temp}°C"
             
-    return alarm
+    return alarm, reason
 
 # ==================== DATA LOGGING ====================
 def save_to_sd(data):
@@ -342,50 +352,157 @@ def save_to_sd(data):
         print(f"SD write error: {e}")
         return False
 
-# ==================== NETWORK FUNCTIONS ====================
-def send_to_server(data):
-    """Send data to ML inference server"""
+# ==================== ML INFERENCE SERVER INTEGRATION ====================
+def send_to_ml_server(pm25, pm10, gas, co, temp, humidity, pressure):
+    """
+    Send 7 raw sensor readings to ML Inference Server.
+    Server computes all 35 features and returns prediction.
+    
+    Args:
+        pm25: PM2.5 from MQ-130 (μg/m³)
+        pm10: PM10 from MQ-130 (μg/m³)
+        gas: VOC from MQ-135 (ppm)
+        co: CO from MQ-7 (ppm)
+        temp: Temperature from DHT-22 (°C)
+        humidity: Relative humidity from DHT-22 (%)
+        pressure: Pressure from BMP180 (hPa)
+    
+    Returns:
+        dict: {class, confidence, alarm_triggered} or None if failed
+    """
     if not wlan or not wlan.isconnected():
-        return False
-        
+        print("❌ WiFi not connected, skipping ML inference")
+        return None
+    
+    if not config.get('enable_ml_inference', True):
+        print("ML inference disabled in config")
+        return None
+    
     try:
+        # Format 7 raw sensors for ML server
+        data = {
+            'pm25': pm25 if pm25 is not None else 0,
+            'pm10': pm10 if pm10 is not None else 0,
+            'gas': gas if gas is not None else 0,
+            'co': co if co is not None else 0,
+            'temp': temp if temp is not None else 0,
+            'humidity': humidity if humidity is not None else 0,
+            'pressure': pressure if pressure is not None else 0
+        }
+        
         headers = {'Content-Type': 'application/json'}
+        ml_server_url = config.get('ml_server_url', 'http://192.168.1.100:5000/data')
+        timeout_ms = config.get('ml_server_timeout', 5000)
+        
+        print("Sending to ML server...")
         response = urequests.post(
-            config['server_url'],
+            ml_server_url,
             data=ujson.dumps(data),
-            headers=headers
+            headers=headers,
+            timeout=timeout_ms // 1000  # Convert ms to seconds
         )
         
         if response.status_code == 200:
             result = response.json()
-            print(f"Server response: {result}")
             response.close()
-            return result
+            
+            # Extract ML prediction
+            ml_pred = result.get('ml_prediction', {})
+            prediction_class = ml_pred.get('class', 'Unknown')
+            confidence = ml_pred.get('confidence', 0)
+            alarm = result.get('alarm_triggered', False)
+            
+            print(f"✓ ML Prediction: {prediction_class} (confidence: {confidence:.1%})")
+            print(f"  Features computed: {ml_pred.get('features_used', 0)}")
+            print(f"  Alarm: {'🔴 YES' if alarm else '🟢 NO'}")
+            
+            return {
+                'class': prediction_class,
+                'confidence': confidence,
+                'alarm_triggered': alarm,
+                'probabilities': result.get('probabilities', {}),
+                'aqi_category': result.get('aqi_category', 'Unknown')
+            }
         else:
-            print(f"Server error: {response.status_code}")
+            print(f"❌ ML Server error: {response.status_code}")
             response.close()
             return None
     except Exception as e:
-        print(f"Network error: {e}")
+        print(f"❌ ML inference error: {e}")
         return None
 
-def send_to_blynk(data):
-    """Send data to Blynk cloud platform"""
+def check_ml_server_health():
+    """
+    Check if ML inference server is running and ready.
+    
+    Returns:
+        bool: True if server is healthy and model loaded
+    """
     if not wlan or not wlan.isconnected():
+        return False
+    
+    try:
+        health_url = config.get('ml_server_health_url', 'http://192.168.1.100:5000/health')
+        response = urequests.get(health_url, timeout=3)
+        
+        if response.status_code == 200:
+            health = response.json()
+            response.close()
+            
+            model_ok = health.get('model_loaded', False)
+            scaler_ok = health.get('scaler_loaded', False)
+            version = health.get('version', 'Unknown')
+            
+            if model_ok and scaler_ok:
+                print(f"✓ ML Server healthy (v{version})")
+                return True
+            else:
+                print(f"❌ ML Server not ready (model: {model_ok}, scaler: {scaler_ok})")
+                return False
+        else:
+            print(f"❌ ML Server unhealthy: {response.status_code}")
+            response.close()
+            return False
+    except Exception as e:
+        print(f"❌ Health check error: {e}")
+        return False
+
+def send_to_blynk(data):
+    """
+    Send sensor data and ML predictions to Blynk cloud platform
+    
+    Virtual Pins:
+      V0 = PM2.5 (μg/m³)
+      V1 = PM10 (μg/m³)
+      V2 = Temperature (°C)
+      V3 = Humidity (%)
+      V4 = Pressure (hPa)
+      V5 = Alarm State (0=Safe, 1=Alert)
+      V6 = ML Prediction Class (0=Safe, 1=Caution, 2=Hazardous)
+      V7 = ML Confidence (0-100%)
+    """
+    if not wlan or not wlan.isconnected():
+        print("⚠ Blynk: WiFi not connected")
         return False
         
     try:
-        # Virtual pins: V0=PM2.5, V1=PM10, V2=Temp, V3=Humidity, V4=Pressure, V5=Alarm
         base_url = f"http://{config['blynk_server']}/external/api/batch/update"
+        
+        # Map ML class to numeric value for Blynk
+        ml_class_map = {'safe': 0, 'caution': 1, 'hazardous': 2}
+        ml_class_num = ml_class_map.get(data.get('ml_prediction', 'safe').lower(), 0)
+        ml_confidence_percent = int(data.get('ml_confidence', 0) * 100)
         
         params = {
             'token': config['blynk_token'],
-            'V0': data['pm25'],
-            'V1': data['pm10'],
-            'V2': data['temp'],
-            'V3': data['humidity'],
-            'V4': data['pressure'],
-            'V5': data['alarm']
+            'V0': data['pm25'],           # PM2.5
+            'V1': data['pm10'],           # PM10
+            'V2': data['temp'],           # Temperature
+            'V3': data['humidity'],       # Humidity
+            'V4': data['pressure'],       # Pressure
+            'V5': data['alarm'],          # Alarm state
+            'V6': ml_class_num,           # ML prediction (0=Safe, 1=Caution, 2=Hazardous)
+            'V7': ml_confidence_percent   # ML confidence (%)
         }
         
         # Build URL with query parameters
@@ -393,15 +510,15 @@ def send_to_blynk(data):
         response = urequests.get(url)
         
         if response.status_code == 200:
-            print("Blynk updated successfully")
+            print("📡 Blynk updated successfully (8 virtual pins)")
             response.close()
             return True
         else:
-            print(f"Blynk error: {response.status_code}")
+            print(f"❌ Blynk error: {response.status_code}")
             response.close()
             return False
     except Exception as e:
-        print(f"Blynk error: {e}")
+        print(f"❌ Blynk error: {e}")
         return False
 
 # ==================== MAIN LOOP ====================
@@ -411,93 +528,154 @@ def get_timestamp():
 
 def main():
     """Main monitoring loop"""
-    print("ESP32 Air Quality Monitor Starting...")
-    print("=" * 50)
+    print("=" * 60)
+    print("ESP32 MILES Air Quality Prediction System v2.0")
+    print("=" * 60)
+    print("\nStarting MILES monitoring with ML inference...")
+    print("=" * 60)
     
     # Connect to WiFi
     wifi_connected = connect_wifi()
     
-    print("\nStarting monitoring loop...")
-    print(f"Sampling interval: {config['sampling_interval']} seconds")
-    print("=" * 50)
+    # Check ML server health if WiFi connected
+    ml_server_ready = False
+    if wifi_connected:
+        print("\n[STARTUP] Checking ML Inference Server...")
+        ml_server_ready = check_ml_server_health()
+        if ml_server_ready:
+            print("✓ ML Server is ready for predictions\n")
+        else:
+            print("⚠ ML Server not accessible (will continue with local logic)\n")
+    
+    print(f"Configuration:")
+    print(f"  • Sampling interval: {config['sampling_interval']} seconds")
+    print(f"  • ML Inference: {'🟢 ENABLED' if config.get('enable_ml_inference', True) else '🔴 DISABLED'}")
+    print(f"  • WiFi: {'🟢 ENABLED' if config['enable_wifi'] else '🔴 DISABLED'}")
+    print(f"  • SD Card: {'🟢 ENABLED' if config['enable_sd_card'] else '🔴 DISABLED'}")
+    print("=" * 60 + "\n")
     
     cycle_count = 0
+    ml_predictions = []
     
     while True:
         try:
             cycle_count += 1
-            print(f"\n--- Cycle {cycle_count} ---")
+            print(f"\n{'─' * 60}")
+            print(f"Cycle {cycle_count} - {time.time():.0f}")
+            print(f"{'─' * 60}")
             
-            # Read all sensors
+            # Read all 7 sensors
             pm25, pm10 = read_pms5003()
             temp, humidity = read_dht22()
             pressure = read_bmp180()
-            mq2, mq7 = read_mq_sensors()
+            gas, co = read_mq_sensors()
             
-            # Display readings
-            print(f"Timestamp: {get_timestamp()}")
-            print(f"PM2.5: {pm25} μg/m³" if pm25 else "PM2.5: ERROR")
-            print(f"PM10: {pm10} μg/m³" if pm10 else "PM10: ERROR")
-            print(f"Temperature: {temp}°C" if temp else "Temperature: ERROR")
-            print(f"Humidity: {humidity}%" if humidity else "Humidity: ERROR")
-            print(f"Pressure: {pressure} hPa" if pressure else "Pressure: ERROR")
-            print(f"MQ-2: {mq2}, MQ-7: {mq7}")
+            # Display raw sensor readings
+            print("\n📊 RAW SENSOR READINGS:")
+            print(f"  PM2.5:     {pm25 if pm25 is not None else '--'} μg/m³")
+            print(f"  PM10:      {pm10 if pm10 is not None else '--'} μg/m³")
+            print(f"  Gas (VOC): {gas if gas is not None else '--'} ppm")
+            print(f"  CO:        {co if co is not None else '--'} ppm")
+            print(f"  Temp:      {temp if temp is not None else '--'}°C")
+            print(f"  Humidity:  {humidity if humidity is not None else '--'}%")
+            print(f"  Pressure:  {pressure if pressure is not None else '--'} hPa")
             
             # Control fan based on temperature
-            control_fan(temp)
+            if temp is not None:
+                control_fan(temp)
             
-            # Check alarm conditions
-            alarm = check_alarm_conditions(pm25, pm10, temp, mq2)
+            # ============================================================
+            # ML INFERENCE - Get prediction from server with all 35 features
+            # ============================================================
+            ml_result = None
+            if wifi_connected and ml_server_ready:
+                print("\n🤖 ML INFERENCE (35 Features):")
+                ml_result = send_to_ml_server(pm25, pm10, gas, co, temp, humidity, pressure)
+                
+                if ml_result:
+                    print(f"  Class probabilities:")
+                    probs = ml_result.get('probabilities', {})
+                    print(f"    Safe:      {probs.get('safe', 0):.1%}")
+                    print(f"    Caution:   {probs.get('caution', 0):.1%}")
+                    print(f"    Hazardous: {probs.get('hazardous', 0):.1%}")
+                    ml_predictions.append(ml_result)
+                else:
+                    print("  ⚠ ML inference failed, using local logic")
+            elif not wifi_connected:
+                print("\n⚠ WiFi disconnected - ML inference not available")
             
-            if alarm:
-                print("⚠️ ALARM TRIGGERED!")
-                trigger_alarm(2000)
+            # ============================================================
+            # ALARM DECISION
+            # ============================================================
+            alarm_triggered = False
+            alarm_reason = None
+            
+            if ml_result and ml_result.get('confidence', 0) >= config.get('ml_confidence_threshold', 0.90):
+                # Trust ML prediction
+                if ml_result.get('alarm_triggered', False):
+                    alarm_triggered = True
+                    alarm_reason = f"ML: {ml_result['class']} (confidence {ml_result['confidence']:.0%})"
             else:
-                print("✓ Normal conditions")
+                # Fallback to local thresholds or low-confidence scenario
+                if not wifi_connected or not ml_server_ready:
+                    # Local rule-based alarm (optional backup)
+                    if pm25 and pm25 > 100:
+                        alarm_triggered = True
+                        alarm_reason = f"Local: PM2.5 high ({pm25} μg/m³)"
             
-            # Prepare data package
-            data = {
+            # ============================================================
+            # ALERT SYSTEM
+            # ============================================================
+            print("\n🚨 ALARM STATUS:")
+            if alarm_triggered:
+                print(f"  🔴 ALARM TRIGGERED")
+                print(f"     Reason: {alarm_reason}")
+                trigger_alarm(2000)  # 2 second alarm
+            else:
+                print(f"  🟢 NORMAL CONDITIONS")
+                buzzer.off()
+            
+            # Prepare data package for logging
+            data_package = {
                 'timestamp': get_timestamp(),
                 'pm25': pm25 if pm25 is not None else 0,
                 'pm10': pm10 if pm10 is not None else 0,
+                'gas': gas if gas is not None else 0,
+                'co': co if co is not None else 0,
                 'temp': temp if temp is not None else 0,
                 'humidity': humidity if humidity is not None else 0,
                 'pressure': pressure if pressure is not None else 0,
-                'mq2': mq2 if mq2 is not None else 0,
-                'mq7': mq7 if mq7 is not None else 0,
-                'alarm': 1 if alarm else 0
+                'alarm': 1 if alarm_triggered else 0,
+                'ml_prediction': ml_result['class'] if ml_result else 'N/A',
+                'ml_confidence': ml_result['confidence'] if ml_result else 0
             }
             
             # Save to SD card
             if config['enable_sd_card']:
-                if save_to_sd(data):
-                    print("✓ Saved to SD card")
+                if save_to_sd(data_package):
+                    print("\n💾 Data saved to SD card")
             
-            # Send to server for ML prediction
-            if wifi_connected and config['enable_wifi']:
-                server_result = send_to_server(data)
-                if server_result:
-                    print(f"ML Prediction: {server_result.get('prediction', 'N/A')}")
-                    print(f"AQI Category: {server_result.get('aqi_category', 'N/A')}")
-                
-                # Send to Blynk
-                send_to_blynk(data)
+            # Send to Blynk (optional)
+            if wifi_connected and config.get('enable_wifi', True):
+                send_to_blynk(data_package)
             
             # Wait for next cycle
-            print(f"\nWaiting {config['sampling_interval']} seconds...")
-            time.sleep(config['sampling_interval'])
+            remaining = config['sampling_interval']
+            print(f"\n⏱ Next reading in {remaining} seconds...")
+            time.sleep(remaining)
             
         except KeyboardInterrupt:
-            print("\n\nStopping monitoring...")
+            print("\n\n⏹ Stopping MILES monitoring...")
             break
         except Exception as e:
-            print(f"Error in main loop: {e}")
+            print(f"\n❌ Error in main loop: {e}")
+            print("Retrying in 5 seconds...")
             time.sleep(5)
     
     # Cleanup
     fan.duty(0)
     buzzer.off()
-    print("Monitoring stopped")
+    print("✓ MILES system stopped")
 
 # ==================== ENTRY POINT ====================
 if __name__ == '__main__':
