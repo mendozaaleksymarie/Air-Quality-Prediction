@@ -285,7 +285,7 @@ void setupWebRoutes() {
         request->send(200, "text/html", html);
     });
 
-    // CSV download endpoint - Read file into memory with yields to prevent watchdog timeout
+    // CSV download endpoint - Stream file in small chunks with aggressive yields to prevent watchdog timeout
     server.on("/data_file", HTTP_GET, [](AsyncWebServerRequest *request) {
         File file = LittleFS.open("/data.csv", "r");
         if (!file) {
@@ -293,16 +293,25 @@ void setupWebRoutes() {
             return;
         }
         
-        String fileContent = "";
-        char buffer[256];
+        // Get file size for efficient pre-allocation
+        size_t fileSize = file.size();
+        String fileContent;
+        fileContent.reserve(fileSize + 50);  // Pre-allocate to avoid fragmentation
         
-        while (file.available()) {
-            int bytesRead = file.readBytes(buffer, 256);
-            for (int i = 0; i < bytesRead; i++) {
-                fileContent += buffer[i];
-            }
-            yield();  // CRITICAL: Prevent watchdog timeout during file read
-            delay(2);  // CRITICAL: Allow WiFi stack to process packets
+        // Read in small chunks with very frequent yields
+        const size_t CHUNK_SIZE = 128;  // Small chunks = more frequent control yield
+        char buffer[CHUNK_SIZE];
+        size_t bytesRead;
+        
+        while ((bytesRead = file.readBytes(buffer, CHUNK_SIZE)) > 0) {
+            // Use concat() for efficient bulk concatenation (not character-by-character)
+            fileContent.concat(buffer, bytesRead);
+            
+            // Aggressive yield pattern to prevent watchdog starvation
+            yield();
+            delay(3);
+            yield();
+            delay(2);
         }
         
         file.close();
