@@ -285,7 +285,7 @@ void setupWebRoutes() {
         request->send(200, "text/html", html);
     });
 
-    // CSV download endpoint - Stream file in chunks with yields to prevent watchdog timeout
+    // CSV download endpoint - Read file into memory with yields to prevent watchdog timeout
     server.on("/data_file", HTTP_GET, [](AsyncWebServerRequest *request) {
         File file = LittleFS.open("/data.csv", "r");
         if (!file) {
@@ -293,22 +293,22 @@ void setupWebRoutes() {
             return;
         }
         
-        // Send HTTP headers
-        AsyncWebServerResponse *response = request->beginResponse("text/csv");
-        response->addHeader("Content-Disposition", "attachment; filename=data.csv");
-        
-        // Stream file in chunks with yields to prevent watchdog timeout
-        const size_t bufferSize = 256;
-        uint8_t buffer[bufferSize];
+        String fileContent = "";
+        char buffer[256];
         
         while (file.available()) {
-            size_t bytesRead = file.read(buffer, bufferSize);
-            response->write(buffer, bytesRead);
-            yield();  // CRITICAL: Prevent watchdog timeout during file streaming
-            delay(5);  // CRITICAL: Allow WiFi stack to process packets
+            int bytesRead = file.readBytes(buffer, 256);
+            for (int i = 0; i < bytesRead; i++) {
+                fileContent += buffer[i];
+            }
+            yield();  // CRITICAL: Prevent watchdog timeout during file read
+            delay(2);  // CRITICAL: Allow WiFi stack to process packets
         }
         
         file.close();
+        
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/csv", fileContent);
+        response->addHeader("Content-Disposition", "attachment; filename=data.csv");
         request->send(response);
     });
 
