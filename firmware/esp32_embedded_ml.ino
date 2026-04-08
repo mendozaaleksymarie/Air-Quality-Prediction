@@ -699,14 +699,19 @@ void logDataToLittleFS() {
                      String(lastPrediction.confidence * 100, 1) + "," +
                      CLASS_NAMES[lastPrediction.predicted_class] + "\n";
     
+    yield();  // CRITICAL: Yield after string concatenation to prevent watchdog timeout
+    delay(10);
+    
     File file = LittleFS.open("/data.csv", FILE_APPEND);
     if (file) {
         file.print(dataRow);
         file.close();
+        yield();  // Yield after file operations
         Serial.println("✓ Data logged to LittleFS");
     } else {
         Serial.println("✗ Failed to open CSV file");
     }
+    yield();  // Final yield to allow scheduler
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -715,16 +720,31 @@ void logDataToLittleFS() {
 
 void printPredictionResults() {
     Serial.println("\n" + String('=', 70));
+    yield();  // CRITICAL: Yield after heavy string operation to prevent watchdog timeout
+    delay(10);
+    
     Serial.println("FINAL PREDICTION:");
-    Serial.println(String('=', 70));
+    yield();
+    
     Serial.printf("  Class: %d (%s)\n", 
                  lastPrediction.predicted_class, 
                  CLASS_NAMES[lastPrediction.predicted_class]);
+    yield();
+    
     Serial.printf("  Confidence: %.2f%%\n", lastPrediction.confidence * 100);
+    yield();
+    
     Serial.printf("  Inference Time: %lu ms\n", lastPrediction.inference_time_ms);
+    yield();
+    
     Serial.println("  Architecture: EMBEDDED ML (No WiFi Dependency)");
+    yield();
+    
     Serial.println("  Model: 200 Random Forest Trees, 99.98% Accuracy");
+    yield();
+    
     Serial.println(String('=', 70) + "\n");
+    yield();
 }
 
 // ════════════════════════════════════════════════════════════════════
