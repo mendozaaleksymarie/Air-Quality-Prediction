@@ -3,18 +3,20 @@
  * AIR QUALITY PREDICTION - EMBEDDED ML FIRMWARE (ESP32)
  * ══════════════════════════════════════════════════════════════════════
  * 
- * SYSTEM: Embedded Random Forest on ESP32 (NO WiFi NEEDED)
+ * SYSTEM: Embedded Random Forest on ESP32 with WiFi Admin Panel
  * - Safe (0): Normal air quality
  * - Caution (1): Elevated pollution - manual inspection needed
  * - Hazardous (2): Immediate evacuation required
  * 
  * KEY FEATURES:
- * ✓ 99.98% accuracy on-device
- * ✓ NO WiFi dependency - fully autonomous
+ * ✓ 99.98% accuracy on-device ML inference
+ * ✓ WiFi Admin Panel for data management
  * ✓ ML model embedded as C++ header (model.h)
  * ✓ Real-time inference (~10ms per prediction)
- * ✓ Multi-sensor contextual analysis
- * ✓ Confidence scoring built-in
+ * ✓ Multi-sensor contextual analysis with confidence scoring
+ * ✓ 20x4 LCD display with real-time data
+ * ✓ LittleFS data logging (CSV format)
+ * ✓ Time sync and data download via web interface
  * 
  * HARDWARE:
  * - ESP32 Development Board
@@ -22,29 +24,41 @@
  * - MQ2 (Gas/VOC Sensor) - Pin 34 (ADC)
  * - MQ7 (CO Sensor) - Pin 35 (ADC)
  * - PMS5003 (PM2.5/PM10) - UART (TX2/RX2)
+ * - 20x4 LCD I2C Display (0x27)
  * - RGB LEDs: Green (18), Yellow (19), Red (32)
  * - Buzzer - Pin 25
  * 
- * MODEL: Random Forest Classifier (200 trees)
+ * MODEL: Random Forest Classifier (200 trees, 99.98% accuracy)
  * INPUT: [PM2.5, PM10, Temp, Humidity, Gas, CO, TimeOfDay]
  * OUTPUT: Class (0/1/2) + Confidence Score
  * 
  * ══════════════════════════════════════════════════════════════════════
  */
 
-// Include embedded ML model (NO wireless libraries needed!)
+// Embedded ML model & wireless libraries
 #include "model.h"
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
 #include "DHT.h"
-#include <SPIFFS.h>
+#include <LiquidCrystal_I2C.h>
+#include <time.h>
 
 // ════════════════════════════════════════════════════════════════════
 // ████ CONFIGURATION SECTION (USER EDITABLE)
 // ════════════════════════════════════════════════════════════════════
 
+// WiFi Configuration
+const char* ap_ssid = "MILES_Data_Station";
+const char* ap_password = "password123";
+
 // System Configuration
-const int SENSOR_READ_INTERVAL = 60000;  // Read sensors every 60 seconds
+const int SENSOR_READ_INTERVAL = 10000;  // Read sensors every 10 seconds
 const int WARMUP_TIME = 120000;  // 120 seconds (2 mins) warm-up period
 const float CONFIDENCE_THRESHOLD = 0.90;  // Only act if confidence > 90%
+
+// LCD display refresh interval
+const int LCD_REFRESH_INTERVAL = 10000;  // Refresh LCD every 10 seconds
 
 // ════════════════════════════════════════════════════════════════════
 // ████ PIN DEFINITIONS
@@ -68,6 +82,8 @@ const float CONFIDENCE_THRESHOLD = 0.90;  // Only act if confidence > 90%
 // ════════════════════════════════════════════════════════════════════
 
 DHT dht(DHTPIN, DHTTYPE);
+AsyncWebServer server(80);
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // Sensor data structure
 struct SensorData {
@@ -93,6 +109,8 @@ struct ModelPrediction {
 struct SystemState {
     int warmup_time_remaining;
     bool initialization_complete;
+    unsigned long clearTimestamp;
+    bool isWaitingAfterClear;
 } systemState;
 
 // Constants for display
@@ -105,34 +123,68 @@ const int CLASS_COLORS[] = {GREEN_LED, YELLOW_LED, RED_LED};
 
 void setup() {
     Serial.begin(115200);
+    Serial2.begin(9600, SERIAL_8N1, 16, 17);
     delay(1000);
     
-    Serial.println("\n\n╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║  AIR QUALITY PREDICTION - EMBEDDED ML (ESP32)              ║");
-    Serial.println("║  Status: INITIALIZING... (NO WiFi Required)                ║");
-    Serial.println("╚════════════════════════════════════════════════════════════╝\n");
-    
-    // Initialize pins
+    // Initialize GPIO pins
     initializePins();
     blinkLED(YELLOW_LED, 3);  // Yellow blinks = initializing
     
     // Initialize sensors
     initializeSensors();
     
-    // Initialize file system (for logging)
-    if (!SPIFFS.begin(true)) {
-        Serial.println("✗ SPIFFS Mount Failed");
+    // Initialize LCD display
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(0, 0); 
+    lcd.print("MILES_Data_Station");
+    lcd.setCursor(0, 1); 
+    lcd.print("Initializing...");
+    lcd.setCursor(0, 3); 
+    lcd.print("Please wait...");
+    delay(3000);
+    lcd.clear();
+    
+    // Initialize LittleFS
+    if (!LittleFS.begin(true)) {
+        Serial.println("✗ LittleFS Mount Failed");
     } else {
-        Serial.println("✓ SPIFFS Mounted Successfully");
+        Serial.println("✓ LittleFS Mounted Successfully");
     }
+    
+    // Create CSV header if not exists
+    if (!LittleFS.exists("/data.csv")) {
+        File file = LittleFS.open("/data.csv", FILE_WRITE);
+        if (file) {
+            file.println("Timestamp,PM25,PM10,MQ2_ppm,MQ7_ppm,Temp,Hum,Confidence,Status");
+            file.close();
+        }
+    }
+    
+    // Setup WiFi Access Point
+    WiFi.softAP(ap_ssid, ap_password);
+    Serial.print("✓ WiFi AP Started: ");
+    Serial.println(WiFi.softAPIP());
+    
+    // Setup web server routes
+    setupWebRoutes();
+    server.begin();
     
     // Initialize system state
     systemState.warmup_time_remaining = WARMUP_TIME;
     systemState.initialization_complete = false;
+    systemState.clearTimestamp = 0;
+    systemState.isWaitingAfterClear = false;
     
-    Serial.println("\n✓ SYSTEM READY - Entering 2-minute warm-up phase...");
+    Serial.println("\n╔════════════════════════════════════════════════════════════╗");
+    Serial.println("║  AIR QUALITY PREDICTION - EMBEDDED ML (ESP32)              ║");
+    Serial.println("║  Status: INITIALIZING... (WiFi Admin Panel Active)         ║");
+    Serial.println("╚════════════════════════════════════════════════════════════╝\n");
+    
+    Serial.println("✓ SYSTEM READY - Entering 2-minute warm-up phase...");
     Serial.println("  (Sensors stabilizing, ML model ready)");
     Serial.println("  (Model: 200 Random Forest trees, 99.98% accuracy)");
+    Serial.println("  (Access admin panel: 192.168.4.1/download)");
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -149,28 +201,102 @@ void loop() {
     
     // Main cycle
     static unsigned long lastReadTime = 0;
+    static unsigned long lastLCDRefresh = 0;
+    unsigned long currentMillis = millis();
     
-    if (millis() - lastReadTime >= SENSOR_READ_INTERVAL) {
-        lastReadTime = millis();
+    // Sensor reading cycle
+    if (currentMillis - lastReadTime >= SENSOR_READ_INTERVAL) {
+        lastReadTime = currentMillis;
         
         Serial.println("\n" + String('=', 70));
-        Serial.println("Reading Sensors...");
+        Serial.println("Reading Sensors & Performing ML Inference...");
         Serial.println(String('=', 70));
         
         // Read all sensor data
         readSensorData();
         printSensorData();
         
-        // Perform embedded ML inference (NO WiFi!)
+        // Perform embedded ML inference
         performEmbeddedMLInference();
         
         // Execute action based on prediction
         executeAction(lastPrediction);
         
+        // Log data to LittleFS
+        logDataToLittleFS();
+        
         printPredictionResults();
     }
     
+    // LCD refresh cycle
+    if (currentMillis - lastLCDRefresh >= LCD_REFRESH_INTERVAL) {
+        lastLCDRefresh = currentMillis;
+        updateLCDDisplay();
+    }
+    
     delay(100);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ████ WEB ROUTES INITIALIZATION
+// ════════════════════════════════════════════════════════════════════
+
+String getTimestamp() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return "2026-04-08 00:00:00 UTC";
+    }
+    char buffer[30];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S UTC", &timeinfo);
+    return String(buffer);
+}
+
+void setupWebRoutes() {
+    // Time sync endpoint
+    server.on("/sync", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("t")) {
+            time_t t = (time_t)request->getParam("t")->value().toInt();
+            struct timeval tv = { .tv_sec = t };
+            settimeofday(&tv, NULL);
+            request->send(200, "text/plain", "SUCCESS: MILES Time Synced! Current: " + getTimestamp());
+        } else {
+            String html = "<html><script>window.location.href='/sync?t=' + Math.floor(Date.now()/1000);</script></html>";
+            request->send(200, "text/html", html);
+        }
+    });
+
+    // Admin panel endpoint
+    server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String html = "<html><body style='font-family:sans-serif; text-align:center;'>";
+        html += "<h2>MILES Admin Panel</h2>";
+        html += "<p>Time: " + getTimestamp() + "</p>";
+        html += "<p>Status: ";
+        html += systemState.initialization_complete ? "RUNNING" : "WARM-UP";
+        html += "</p>";
+        html += "<a href='/sync'><button style='padding:10px;'>1. SYNC TIME NOW</button></a><br><br>";
+        html += "<a href='/data_file'><button style='padding:10px;'>2. DOWNLOAD CSV</button></a><br><br>";
+        html += "<a href='/clear' onclick='return confirm(\"Clear all data?\")'><button style='color:red; padding:10px;'>3. CLEAR DATA</button></a>";
+        html += "</body></html>";
+        request->send(200, "text/html", html);
+    });
+
+    // CSV download endpoint
+    server.on("/data_file", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(LittleFS, "/data.csv", "text/csv");
+    });
+
+    // Clear data endpoint
+    server.on("/clear", HTTP_GET, [](AsyncWebServerRequest *request) {
+        LittleFS.remove("/data.csv");
+        File file = LittleFS.open("/data.csv", FILE_WRITE);
+        if (file) {
+            file.println("Timestamp,PM25,PM10,MQ2_ppm,MQ7_ppm,Temp,Hum,Confidence,Status");
+            file.close();
+        }
+        systemState.clearTimestamp = millis();
+        systemState.isWaitingAfterClear = true;
+        request->send(200, "text/plain", "Data Cleared! System will be ready in 2 minutes.");
+    });
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -374,10 +500,11 @@ void executeAction(ModelPrediction prediction) {
         Serial.printf("⚠ LOW CONFIDENCE (%.2f%%) - Caution Mode\n", 
                      prediction.confidence * 100);
         setLED(YELLOW_LED);
+        digitalWrite(BUZZER_PIN, LOW);
         return;
     }
     
-    // Execute response based on classification
+    // Execute response based on ML prediction (NO THRESHOLDS!)
     switch (prediction.predicted_class) {
         case 0:  // SAFE
             handleSafeStatus();
@@ -454,6 +581,117 @@ void buzzAlarm(int times, int duration) {
             digitalWrite(BUZZER_PIN, LOW);
             delay(200);
         }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ████ LCD DISPLAY & DATA LOGGING FUNCTIONS
+// ════════════════════════════════════════════════════════════════════
+
+void updateLCDDisplay() {
+    // Check if system is in warm-up or post-clear waiting period
+    unsigned long uptimeMinutes = millis() / 60000;
+    
+    if (!systemState.initialization_complete) {
+        // Warm-up phase
+        int remaining_seconds = systemState.warmup_time_remaining / 1000;
+        int remaining_minutes = remaining_seconds / 60;
+        
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("WARM-UP MODE");
+        lcd.setCursor(0, 2);
+        lcd.print(remaining_minutes);
+        lcd.print(" min remaining");
+    } else if (systemState.isWaitingAfterClear) {
+        // Post-clear waiting period (2 minutes)
+        unsigned long timeSinceClear = millis() - systemState.clearTimestamp;
+        int remainingMinutes = 2 - (timeSinceClear / 60000);
+        
+        lcd.clear();
+        lcd.setCursor(0, 1);
+        lcd.print("Data cleared!");
+        lcd.setCursor(0, 2);
+        lcd.print("Ready in: ");
+        lcd.print(remainingMinutes);
+        lcd.print("m");
+        
+        if (remainingMinutes <= 0) {
+            systemState.isWaitingAfterClear = false;
+        }
+    } else {
+        // Normal operation - display sensor data
+        // Format: 2 columns × 2 rows layout
+        // Row 1: PM2.5: 5412    PM10: 489
+        // Row 2: MQ2: 58        MQ7: 12
+        // Row 3: T: 23.5C       H: 97.1%
+        // Row 4: STATUS: Hazardous
+        
+        lcd.clear();
+        
+        // Row 1: PM2.5 and PM10
+        lcd.setCursor(0, 0);
+        lcd.print("PM2.5:");
+        lcd.print((int)currentSensorData.pm2_5);
+        lcd.setCursor(11, 0);
+        lcd.print("PM10:");
+        lcd.print((int)currentSensorData.pm10);
+        
+        // Row 2: MQ2 and MQ7
+        lcd.setCursor(0, 1);
+        lcd.print("MQ2:");
+        lcd.print((int)currentSensorData.gas);
+        lcd.setCursor(11, 1);
+        lcd.print("MQ7:");
+        lcd.print((int)currentSensorData.co);
+        
+        // Row 3: Temperature and Humidity
+        lcd.setCursor(0, 2);
+        lcd.print("T:");
+        lcd.print(currentSensorData.temperature, 1);
+        lcd.print("C");
+        lcd.setCursor(11, 2);
+        lcd.print("H:");
+        lcd.print(currentSensorData.humidity, 1);
+        lcd.print("%");
+        
+        // Row 4: Status and Confidence
+        lcd.setCursor(0, 3);
+        lcd.print("STATUS: ");
+        lcd.print(CLASS_NAMES[lastPrediction.predicted_class]);
+    }
+}
+
+void logDataToLittleFS() {
+    // Only log if initialization complete and not in waiting period
+    unsigned long uptimeMinutes = millis() / 60000;
+    
+    if (!systemState.initialization_complete) {
+        return;  // Don't log during warm-up
+    }
+    
+    if (systemState.isWaitingAfterClear) {
+        return;  // Don't log while waiting after clear
+    }
+    
+    // Build CSV row: Timestamp,PM25,PM10,MQ2_ppm,MQ7_ppm,Temp,Hum,Confidence,Status
+    String dataRow = getTimestamp() + "," + 
+                     String((int)currentSensorData.pm2_5) + "," + 
+                     String((int)currentSensorData.pm10) + "," + 
+                     String(currentSensorData.gas, 1) + "," + 
+                     String(currentSensorData.co, 1) + "," + 
+                     String(currentSensorData.temperature, 1) + "," + 
+                     String(currentSensorData.humidity, 1) + "," +
+                     String(lastPrediction.confidence * 100, 1) + "," +
+                     CLASS_NAMES[lastPrediction.predicted_class] + "\n";
+    
+    File file = LittleFS.open("/data.csv", FILE_APPEND);
+    if (file) {
+        file.print(dataRow);
+        file.close();
+        Serial.println("✓ Data logged to LittleFS");
+    } else {
+        Serial.println("✗ Failed to open CSV file");
     }
 }
 
