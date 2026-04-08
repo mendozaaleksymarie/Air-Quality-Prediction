@@ -285,9 +285,31 @@ void setupWebRoutes() {
         request->send(200, "text/html", html);
     });
 
-    // CSV download endpoint
+    // CSV download endpoint - Stream file in chunks with yields to prevent watchdog timeout
     server.on("/data_file", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(LittleFS, "/data.csv", "text/csv");
+        File file = LittleFS.open("/data.csv", "r");
+        if (!file) {
+            request->send(404, "text/plain", "File not found");
+            return;
+        }
+        
+        // Send HTTP headers
+        AsyncWebServerResponse *response = request->beginResponse("text/csv");
+        response->addHeader("Content-Disposition", "attachment; filename=data.csv");
+        
+        // Stream file in chunks with yields to prevent watchdog timeout
+        const size_t bufferSize = 256;
+        uint8_t buffer[bufferSize];
+        
+        while (file.available()) {
+            size_t bytesRead = file.read(buffer, bufferSize);
+            response->write(buffer, bytesRead);
+            yield();  // CRITICAL: Prevent watchdog timeout during file streaming
+            delay(5);  // CRITICAL: Allow WiFi stack to process packets
+        }
+        
+        file.close();
+        request->send(response);
     });
 
     // Clear data endpoint
