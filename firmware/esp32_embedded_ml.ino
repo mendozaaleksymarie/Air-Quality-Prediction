@@ -574,8 +574,10 @@ void blinkLED(int pin, int times) {
     for (int i = 0; i < times; i++) {
         digitalWrite(pin, HIGH);
         delay(200);
+        yield();  // CRITICAL: Prevent watchdog timeout during LED blink
         digitalWrite(pin, LOW);
         delay(200);
+        yield();  // CRITICAL: Prevent watchdog timeout during LED blink
     }
 }
 
@@ -588,8 +590,10 @@ void buzzAlarm(int times, int duration) {
         for (int i = 0; i < times; i++) {
             digitalWrite(BUZZER_PIN, HIGH);
             delay(duration);
+            yield();  // CRITICAL: Prevent watchdog timeout during buzzer beep
             digitalWrite(BUZZER_PIN, LOW);
             delay(200);
+            yield();  // CRITICAL: Prevent watchdog timeout during buzzer beep
         }
     }
 }
