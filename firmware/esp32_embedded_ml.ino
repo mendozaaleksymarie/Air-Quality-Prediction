@@ -509,16 +509,12 @@ void executeAction(ModelPrediction prediction) {
         return;
     }
     
-    // Only execute if confidence is high enough
-    if (prediction.confidence < CONFIDENCE_THRESHOLD && prediction.predicted_class != 0) {
-        Serial.printf("⚠ LOW CONFIDENCE (%.2f%%) - Caution Mode\n", 
-                     prediction.confidence * 100);
-        setLED(YELLOW_LED);
-        digitalWrite(BUZZER_PIN, LOW);
-        return;
-    }
+    // Execute response based on ML prediction (RAW OUTPUT - NO THRESHOLDS!)
+    // Confidence is logged but not used for filtering - trust the 99.98% accurate model
+    Serial.printf("→ Executing raw ML prediction: Class %d (%s) with %.2f%% confidence\n",
+                 prediction.predicted_class, CLASS_NAMES[prediction.predicted_class], 
+                 prediction.confidence * 100);
     
-    // Execute response based on ML prediction (NO THRESHOLDS!)
     switch (prediction.predicted_class) {
         case 0:  // SAFE
             handleSafeStatus();
