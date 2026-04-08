@@ -142,7 +142,7 @@ void setup() {
     lcd.print("Initializing...");
     lcd.setCursor(0, 3); 
     lcd.print("Please wait...");
-    delay(3000);
+    delay(500);  // Reduced from 3000 to prevent watchdog starvation
     lcd.clear();
     
     // Initialize LittleFS
@@ -165,10 +165,14 @@ void setup() {
     WiFi.softAP(ap_ssid, ap_password);
     Serial.print("✓ WiFi AP Started: ");
     Serial.println(WiFi.softAPIP());
+    yield();  // Allow WiFi stack to initialize
+    delay(100);
     
     // Setup web server routes
     setupWebRoutes();
     server.begin();
+    yield();  // Critical: Allow async server to start properly
+    delay(200);
     
     // Initialize system state
     systemState.warmup_time_remaining = WARMUP_TIME;
@@ -195,7 +199,7 @@ void loop() {
     // Handle warm-up phase (first 2 minutes)
     if (!systemState.initialization_complete) {
         handleWarmupPhase();
-        delay(1000);
+        // No delay here - handleWarmupPhase already has yield() and delay(100)
         return;
     }
     
@@ -234,6 +238,7 @@ void loop() {
         updateLCDDisplay();
     }
     
+    yield();  // Allow other tasks to run
     delay(100);
 }
 
@@ -359,6 +364,10 @@ void handleWarmupPhase() {
     
     // Keep LED yellow during warm-up
     digitalWrite(YELLOW_LED, HIGH);
+    
+    // CRITICAL: Yield to scheduler to prevent watchdog timeout
+    yield();
+    delay(100);  // Allow other tasks (async server, WiFi) to run
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -371,6 +380,7 @@ void readSensorData() {
     // Temperature & Humidity (DHT22)
     currentSensorData.humidity = dht.readHumidity();
     currentSensorData.temperature = dht.readTemperature();
+    yield();  // Allow scheduler to run other tasks
     
     if (isnan(currentSensorData.humidity) || isnan(currentSensorData.temperature)) {
         Serial.println("✗ DHT22 Error!");
@@ -380,9 +390,11 @@ void readSensorData() {
     
     // Gas Sensor (MQ2)
     currentSensorData.gas = readMQ2Sensor();
+    yield();  // Allow scheduler to run other tasks
     
     // CO Sensor (MQ7)
     currentSensorData.co = readMQ7Sensor();
+    yield();  // Allow scheduler to run other tasks
     
     // PM2.5 & PM10 (PMS5003)
     readPMS5003();
@@ -416,9 +428,11 @@ void readPMS5003() {
     if (Serial2.available()) {
         uint8_t buffer[32];
         uint8_t index = 0;
+        unsigned long timeout = millis() + 50;  // Timeout after 50ms to prevent blocking
         
-        while (Serial2.available() && index < 32) {
+        while (Serial2.available() && index < 32 && millis() < timeout) {
             buffer[index++] = Serial2.read();
+            yield();  // Don't starve other tasks
         }
         
         // Parse PM2.5 and PM10 from PMS5003 standard format
