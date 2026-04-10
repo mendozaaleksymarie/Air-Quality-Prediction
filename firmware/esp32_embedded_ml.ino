@@ -53,7 +53,7 @@ const char* ap_ssid = "MILES_Data_Station";
 const char* ap_password = "password123";
 
 // System Configuration
-const int SENSOR_READ_INTERVAL = 10000;  // Read sensors every 10 seconds
+const int SENSOR_READ_INTERVAL = 30000;  // Read sensors every 30 seconds
 const int WARMUP_TIME = 120000;  // 120 seconds (2 mins) warm-up period
 const float CONFIDENCE_THRESHOLD = 0.90;  // Only act if confidence > 90%
 
@@ -239,7 +239,7 @@ void loop() {
     }
     
     yield();  // Allow other tasks to run
-    delay(100);
+    delay(50);  // Keep loop responsive while leaving room for WiFi/web tasks
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -285,38 +285,14 @@ void setupWebRoutes() {
         request->send(200, "text/html", html);
     });
 
-    // CSV download endpoint - Stream file in small chunks with aggressive yields to prevent watchdog timeout
+    // CSV download endpoint - zero-copy style file serving from LittleFS to avoid heap spikes
     server.on("/data_file", HTTP_GET, [](AsyncWebServerRequest *request) {
-        File file = LittleFS.open("/data.csv", "r");
-        if (!file) {
+        if (!LittleFS.exists("/data.csv")) {
             request->send(404, "text/plain", "File not found");
             return;
         }
-        
-        // Get file size for efficient pre-allocation
-        size_t fileSize = file.size();
-        String fileContent;
-        fileContent.reserve(fileSize + 50);  // Pre-allocate to avoid fragmentation
-        
-        // Read in small chunks with very frequent yields
-        const size_t CHUNK_SIZE = 128;  // Small chunks = more frequent control yield
-        char buffer[CHUNK_SIZE];
-        size_t bytesRead;
-        
-        while ((bytesRead = file.readBytes(buffer, CHUNK_SIZE)) > 0) {
-            // Use concat() for efficient bulk concatenation (not character-by-character)
-            fileContent.concat(buffer, bytesRead);
-            
-            // Aggressive yield pattern to prevent watchdog starvation
-            yield();
-            delay(3);
-            yield();
-            delay(2);
-        }
-        
-        file.close();
-        
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/csv", fileContent);
+
+        AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/data.csv", "text/csv");
         response->addHeader("Content-Disposition", "attachment; filename=data.csv");
         request->send(response);
     });
