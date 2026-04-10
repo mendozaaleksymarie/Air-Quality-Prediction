@@ -239,7 +239,7 @@ void loop() {
     }
     
     yield();  // Allow other tasks to run
-    delay(50);  // Keep loop responsive while leaving room for WiFi/web tasks
+    delay(100);  // Increased from 10 to 100ms to stabilize Core 1
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -257,6 +257,9 @@ String getTimestamp() {
 }
 
 void setupWebRoutes() {
+    // This helps the Async Server stay stable on dual-core chips
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+    
     // Time sync endpoint
     server.on("/sync", HTTP_GET, [](AsyncWebServerRequest *request) {
         if (request->hasParam("t")) {

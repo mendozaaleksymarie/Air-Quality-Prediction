@@ -28732,7 +28732,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_18]++;
     int vote_19 = predict_tree_19(normalized_features);
     votes[vote_19]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_20 = predict_tree_20(normalized_features);
     votes[vote_20]++;
     int vote_21 = predict_tree_21(normalized_features);
@@ -28773,7 +28773,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_38]++;
     int vote_39 = predict_tree_39(normalized_features);
     votes[vote_39]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_40 = predict_tree_40(normalized_features);
     votes[vote_40]++;
     int vote_41 = predict_tree_41(normalized_features);
@@ -28814,7 +28814,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_58]++;
     int vote_59 = predict_tree_59(normalized_features);
     votes[vote_59]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_60 = predict_tree_60(normalized_features);
     votes[vote_60]++;
     int vote_61 = predict_tree_61(normalized_features);
@@ -28855,7 +28855,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_78]++;
     int vote_79 = predict_tree_79(normalized_features);
     votes[vote_79]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_80 = predict_tree_80(normalized_features);
     votes[vote_80]++;
     int vote_81 = predict_tree_81(normalized_features);
@@ -28896,7 +28896,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_98]++;
     int vote_99 = predict_tree_99(normalized_features);
     votes[vote_99]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_100 = predict_tree_100(normalized_features);
     votes[vote_100]++;
     int vote_101 = predict_tree_101(normalized_features);
@@ -28937,7 +28937,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_118]++;
     int vote_119 = predict_tree_119(normalized_features);
     votes[vote_119]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_120 = predict_tree_120(normalized_features);
     votes[vote_120]++;
     int vote_121 = predict_tree_121(normalized_features);
@@ -28978,7 +28978,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_138]++;
     int vote_139 = predict_tree_139(normalized_features);
     votes[vote_139]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_140 = predict_tree_140(normalized_features);
     votes[vote_140]++;
     int vote_141 = predict_tree_141(normalized_features);
@@ -29019,7 +29019,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_158]++;
     int vote_159 = predict_tree_159(normalized_features);
     votes[vote_159]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_160 = predict_tree_160(normalized_features);
     votes[vote_160]++;
     int vote_161 = predict_tree_161(normalized_features);
@@ -29060,7 +29060,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_178]++;
     int vote_179 = predict_tree_179(normalized_features);
     votes[vote_179]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
     int vote_180 = predict_tree_180(normalized_features);
     votes[vote_180]++;
     int vote_181 = predict_tree_181(normalized_features);
@@ -29101,7 +29101,7 @@ int predict(float features[NUM_FEATURES]) {
     votes[vote_198]++;
     int vote_199 = predict_tree_199(normalized_features);
     votes[vote_199]++;
-    yield();
+    vTaskDelay(1 / portTICK_PERIOD_MS);  // Hard pause for WiFi stack
 
     // Return class with most votes
     int predicted_class = 0;
