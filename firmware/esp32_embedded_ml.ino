@@ -60,6 +60,14 @@ const unsigned long WIFI_RETRY_MS = 15000;
 const unsigned long BLYNK_RETRY_MS = 5000;
 const unsigned long WARMUP_MS = 120000;
 
+// --- CALIBRATION CONSTANTS (Updated 2026-04-03) ---
+#define CALIBRATION_VERSION 2.0
+#define CALIBRATION_DATE "2026-04-03"
+#define MQ2_OFFSET_CALIBRATED 510.0   // Baseline ADC avg: 2210 | Target: 30 ppm (Safe)
+#define MQ7_OFFSET_CALIBRATED 52.0    // Baseline ADC avg: 2333 | Target: 5 ppm (Safe)
+#define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
+#define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
+
 struct PendingReading {
     String timestamp;
     float pm2_5;
@@ -360,9 +368,9 @@ void loop() {
         lastRead = now;
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
-        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - 400.0;
+        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - MQ2_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.gas < 30.0) data.gas = 30.0;
-        data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - 40.0;
+        data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
 
         float pm25Read = 0.0, pm10Read = 0.0;
