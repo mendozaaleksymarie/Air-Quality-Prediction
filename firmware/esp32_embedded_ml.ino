@@ -373,7 +373,7 @@ void loop() {
         float vout = (adc / 4095.0) * 5.0;
         float rs = ((5.0 - vout) / vout) * 10000.0;
         float ratio = rs / 24539.77;
-        data.gas = 3616.1 * pow(ratio, -2.675);
+        data.gas = 3616.1 * pow(ratio, 2.675);
         if (data.gas < 0.0) data.gas = 0.0;
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
