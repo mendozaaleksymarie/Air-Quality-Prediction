@@ -30,7 +30,7 @@ const float SCALER_MEAN[] = {
     162.6103656164913f,  // feature_1
     31.437707117853012f,  // feature_2
     58.16507195643726f,  // feature_3
-    90.90941700159871f,  // feature_4
+    164.55828295771292f,  // feature_4 (UPDATED: MQ2 new PPM formula RL=10kΩ)
     9.52333592635812f,  // feature_5
     9.035783741734734f,  // feature_6
 };
@@ -40,7 +40,7 @@ const float SCALER_SCALE[] = {
     322.45639856485434f,  // feature_1
     5.360645338895234f,  // feature_2
     12.705583885859085f,  // feature_3
-    45.11080159965295f,  // feature_4
+    307.79858995791585f,  // feature_4 (UPDATED: MQ2 new PPM formula RL=10kΩ)
     6.533757038471742f,  // feature_5
     4.512887228017107f,  // feature_6
 };
