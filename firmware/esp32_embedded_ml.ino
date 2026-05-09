@@ -1,442 +1,246 @@
 /*
- * MILES DATA STATION - ATTEMPT 11.5 (STRICT TIME SYNC + 10M WARMUP)
- */
+  MQ2_ESP32_SandboxAdapted.ino
+  Implements MQ-2 calibration and PPM math adapted for ESP32 (12-bit ADC, 3.3V ADC, GPIO34)
+  Based on SandboxElectronics article and adapted to user hardware choices.
 
-#define BLYNK_TEMPLATE_ID "TMPL66fm4nCL-"
-#define BLYNK_TEMPLATE_NAME "MILES Air Quality Prediction System"
-#define BLYNK_AUTH_TOKEN "vKF0tDJwkknKj38WjeibW4rqdjr5pNUy"
+  Wiring notes:
+  - MQ-2 module heater/sensor Vcc: typically 5V (SENSOR_VCC)
+  - MQ2 analog output goes to ADC pin through a voltage divider to protect 3.3V ADC.
+  - Set VOLTAGE_DIVIDER_SCALAR so sensorVoltage = measuredVadc * VOLTAGE_DIVIDER_SCALAR
+    (For divider with Rtop and Rbottom where Vadc = Vsensor * Rbottom/(Rtop+Rbottom),
+     scalar = (Rtop+Rbottom)/Rbottom).
+  - Analog pin used: GPIO 34 (input only).
+*/
 
-#include <WiFi.h>
-#include <BlynkSimpleEsp32.h>
-#include "model.h"
-#include <SPI.h>
-#include <SD.h>
-#include "DHT.h"
-#include <LiquidCrystal_I2C.h>
-#include <Wire.h>
-#include "time.h"
+#include <Arduino.h>
+#include <Preferences.h>
 
-// --- HOTSPOT CREDENTIALS ---
-char ssid[] = "MILES_Blynk";
-char pass[] = "12345678";
+// Pin & ADC config
+const int MQ2_PIN = 34;                 // GPIO34 ADC input
+const int ADC_RESOLUTION = 12;          // bits (ESP32)
+const float ADC_MAX = 4095.0f;          // 2^12 - 1
+const float ADC_VREF = 3.3f;            // ADC reference voltage on ESP32 (V)
 
-// --- PIN DEFINITIONS ---
-#define SD_CS 5
-#define MQ2_PIN 34
-#define MQ7_PIN 35
-#define DHTPIN 4
-#define BUZZER_PIN 25
-#define RXD2 16
-#define TXD2 17
-#define DHTTYPE DHT22
-#define RED_LED 32
-#define YELLOW_LED 27
-#define GREEN_LED 26
+// Sensor / circuit constants (adjust to your hardware)
+const float SENSOR_VCC = 5.0f;          // MQ-2 supply voltage (heater) — usually 5V
+const float RL_VALUE = 10000.0f;        // Load resistor value in ohms (10kΩ typical for your hardware)
+const float VOLTAGE_DIVIDER_SCALAR = 1.0f; // Set >1.0 if you use a divider. default 1.0 (no divider).
+                                         // Example: divider Rtop=10k, Rbottom=10k => scalar = (10k+10k)/10k = 2.0
 
-DHT dht(DHTPIN, DHTTYPE);
-LiquidCrystal_I2C lcd(0x27, 20, 4);
-String fileName = "";
+// Clean-air factor from MQ-2 datasheet / common libraries
+// RO_CLEAN_AIR_FACTOR = Rs/Ro in clean air. Typical MQ-2 ~ 9.83 (library common value).
+const float RO_CLEAN_AIR_FACTOR = 9.83f;
 
-// NTP Server Settings
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 28800; // GMT+8 (Philippines)
-const int daylightOffset_sec = 0;
+// Calibration and sampling intervals
+const unsigned long CALIBRATION_SAMPLE_INTERVAL = 200; // ms between calibration samples
+const int CALIBRATION_SAMPLE_TIMES = 50;              // number of calibration samples
+const unsigned long SAMPLE_INTERVAL = 5000;           // normal periodic sample interval (ms)
 
-struct SensorData {
-    float pm2_5, pm10, temp, hum, gas, co;
-} data;
+// Curve parameters (Power-law form PPM = A * (Ro/Rs)^B)
+// Use the MQ-2-specific curves you obtain from datasheet or curve-fitting.
+// Default below sets Smoke parameters from your earlier data (A=3616.1, B=2.675).
+struct GasCurve { float A; float B; const char *name; };
+GasCurve LPG_Curve   = { 1.0f, 1.0f, "LPG (placeholder)" };  // REPLACE with real constants
+GasCurve Smoke_Curve = { 3616.1f, 2.675f, "Smoke" };         // provided earlier
+GasCurve CO_Curve    = { 1.0f, 1.0f, "CO (placeholder)" };   // REPLACE with real constants
 
-String lcdRemark = "";
-String blynkFullRemark = "";
-int lastClass = 0;
-unsigned long lastRead = 0;
-bool hasValidPM = false;
-bool blynkConfigured = false;
-bool rtcReady = false;
-unsigned long warmupStartMs = 0;
-unsigned long lastWifiAttempt = 0;
-unsigned long lastBlynkAttempt = 0;
-const unsigned long WIFI_RETRY_MS = 15000;
-const unsigned long BLYNK_RETRY_MS = 5000;
-const unsigned long WARMUP_MS = 120000;
+// Runtime variables
+float Ro = -1.0f; // sensor baseline resistance in clean air (ohms)
+unsigned long lastSampleMillis = 0;
+Preferences prefs;
+int adcCaution = -1;
+int adcHazard = -1;
 
-// --- CALIBRATION CONSTANTS (Updated 2026-04-03) ---
-#define CALIBRATION_VERSION 2.0
-#define CALIBRATION_DATE "2026-04-03"
-#define MQ2_OFFSET_CALIBRATED 510.0   // Baseline ADC avg: 2210 | Target: 30 ppm (Safe)
-#define MQ7_OFFSET_CALIBRATED 52.0    // Baseline ADC avg: 2333 | Target: 5 ppm (Safe)
-#define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
-#define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
-
-struct PendingReading {
-    String timestamp;
-    float pm2_5;
-    float pm10;
-    float temp;
-    float hum;
-    float gas;
-    float co;
-    int cls;
-    String remark;
-};
-
-const int MAX_PENDING_READINGS = 24;
-PendingReading pendingReadings[MAX_PENDING_READINGS];
-int pendingHead = 0;
-int pendingCount = 0;
-
-void queuePendingReading(const PendingReading &reading) {
-    pendingReadings[pendingHead] = reading;
-    pendingHead = (pendingHead + 1) % MAX_PENDING_READINGS;
-    if (pendingCount < MAX_PENDING_READINGS) {
-        pendingCount++;
-    }
-}
-
-bool popPendingReading(PendingReading &reading) {
-    if (pendingCount <= 0) {
-        return false;
-    }
-
-    int tailIndex = (pendingHead - pendingCount + MAX_PENDING_READINGS) % MAX_PENDING_READINGS;
-    reading = pendingReadings[tailIndex];
-    pendingCount--;
-    return true;
-}
-
-void sendReadingToBlynk(const PendingReading &reading) {
-    if (!Blynk.connected()) {
-        return;
-    }
-
-    Blynk.virtualWrite(V0, reading.pm2_5);
-    Blynk.virtualWrite(V1, reading.pm10);
-    Blynk.virtualWrite(V2, reading.temp);
-    Blynk.virtualWrite(V3, reading.hum);
-    Blynk.virtualWrite(V4, reading.gas);
-    Blynk.virtualWrite(V5, reading.co);
-    Blynk.virtualWrite(V7, "REMARKS: " + reading.remark + "\n\nTime: " + reading.timestamp);
-}
-
-void flushPendingReadings(uint8_t maxItems = 4) {
-    if (!Blynk.connected()) {
-        return;
-    }
-
-    PendingReading reading;
-    uint8_t sent = 0;
-    while (sent < maxItems && popPendingReading(reading)) {
-        sendReadingToBlynk(reading);
-        sent++;
-    }
-}
-
-void manageConnections() {
-    unsigned long now = millis();
-
-    if (WiFi.status() != WL_CONNECTED) {
-        if (now - lastWifiAttempt >= WIFI_RETRY_MS) {
-            lastWifiAttempt = now;
-            WiFi.mode(WIFI_STA);
-            WiFi.begin(ssid, pass);
-        }
-        return;
-    }
-
-    if (!blynkConfigured) {
-        Blynk.config(BLYNK_AUTH_TOKEN);
-        blynkConfigured = true;
-    }
-
-    if (!Blynk.connected() && now - lastBlynkAttempt >= BLYNK_RETRY_MS) {
-        lastBlynkAttempt = now;
-        Blynk.connect(0);
-    }
-
-    if (Blynk.connected()) {
-        flushPendingReadings();
-    }
-}
-
-// Kukuha ng Real Time mula sa system clock
-String getTimeString() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        return "TIME_NOT_SYNCED";
-    }
-    char timeStr[25];
-    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
-    return String(timeStr);
-}
-
-// Robust PMS7003 reader
-bool readPMS7003Frame(float &pm25, float &pm10, uint32_t timeoutMs = 1200) {
-    unsigned long start = millis();
-    while (millis() - start < timeoutMs) {
-        while (Serial2.available() > 0) {
-            if (Serial2.peek() != 0x42) {
-                Serial2.read();
-                continue;
-            }
-            if (Serial2.available() < 32) break;
-            uint8_t frame[32];
-            size_t n = Serial2.readBytes(frame, 32);
-            if (n != 32) continue;
-            if (frame[0] != 0x42 || frame[1] != 0x4D) continue;
-            uint16_t frameLen = ((uint16_t)frame[2] << 8) | frame[3];
-            if (frameLen != 28) continue;
-            uint16_t sum = 0;
-            for (int i = 0; i < 30; i++) sum += frame[i];
-            uint16_t received = ((uint16_t)frame[30] << 8) | frame[31];
-            if (sum != received) continue;
-            pm25 = ((uint16_t)frame[12] << 8) | frame[13];
-            pm10 = ((uint16_t)frame[14] << 8) | frame[15];
-            return true;
-        }
-        delay(2);
-        yield();
-    }
-    return false;
-}
-
-void processDecisions(int cls, float pm25, float pm10, float co, float gas, float hum, float temp) {
-    float Tw = temp * atan(0.151977 * pow(hum + 8.313659, 0.5)) + atan(temp + hum) - atan(hum - 1.676331) + 0.00391838 * pow(hum, 1.5) * atan(0.023101 * hum) - 4.686035;
-
-    bool isPm25Haz = (pm25 > 100.0);
-    bool isPm10Haz = (pm10 > 230.0);
-    bool isGasHaz = (gas >= 500.0);  // UPDATED: MQ2 hazardous threshold (RL=10kΩ)
-    bool isCoHaz = (co > 30.0);
-
-    bool isPm25Cau = (pm25 >= 51.0);
-    bool isPm10Cau = (pm10 >= 151.0);
-    bool isGasCau = (gas >= 200.0);  // UPDATED: MQ2 caution threshold (RL=10kΩ)
-    bool isCoCau = (co >= 10.0);
-
-    int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
-    int hazardCount = isPm25Haz + isPm10Haz + isGasHaz + isCoHaz;
-
-    if (Tw > 30.0 || hazardCount >= 1) {
-        cls = 2;
-    } else if (cautionCount >= 1 && cls == 0) {
-        cls = 1;
-    }
-
-    if (hum >= 95.0 && gas <= 130.0 && Tw <= 35.0) {
-        cls = 0;
-    }
-
-    String status = "";
-    String note = "";
-
-    if (Tw > 35.0) {
-        status = "HAZARDOUS: EVACUATE TO COOLING AREA NOW";
-        note = "Extreme heat is life-threatening.";
-    } else if (cls == 2) {
-        if (Tw > 30.0) { status = "HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK"; note = "Heat stress critical."; }
-        else if (hazardCount >= 3) { status = "HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL"; note = "Multi-sensor trigger."; }
-        else if (isGasHaz && isCoHaz) { status = "HAZARDOUS: EVACUATE AFFECTED ZONE NOW"; note = "Gas and CO critical."; }
-        else if (isPm25Haz && isCoHaz) { status = "HAZARDOUS: TREAT AS FIRE RISK NOW"; note = "PM2.5 and CO critical."; }
-        else if (isPm25Haz && isGasHaz) { status = "HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION"; note = "PM2.5 and Gas critical."; }
-        else if (isPm25Haz && isPm10Haz) { status = "HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY"; note = "PM2.5 and PM10 critical."; }
-        else if (isCoHaz) { status = "HAZARDOUS: MOVE UPWIND IMMEDIATELY"; note = "CO hazardous."; }
-        else if (isGasHaz) { status = "HAZARDOUS: STOP IGNITION ACTIVITIES NOW"; note = "Gas hazardous."; }
-        else if (isPm10Haz) { status = "HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW"; note = "PM10 hazardous."; }
-        else if (isPm25Haz) { status = "HAZARDOUS: STOP DUST WORK NOW"; note = "PM2.5 hazardous."; }
-        else { status = "HAZARDOUS: PAUSE OPERATIONS UNTIL STABLE"; note = "Hazard detected."; }
-    } else if (cls == 1) {
-        if (Tw >= 27.0 && Tw <= 30.0 && cautionCount == 0) { status = "CAUTION: SLOW WORK AND HYDRATE"; note = "Heat stress rising."; }
-        else if (cautionCount >= 3) { status = "CAUTION: ACTIVATE PROTECTIVE PROTOCOL"; note = "Multi-sensor caution."; }
-        else if (isPm10Cau && isCoCau) { status = "CAUTION: START FIRE-SOURCE CHECK"; note = "PM10 and CO caution."; }
-        else if (isPm10Cau && isGasCau) { status = "CAUTION: PREPARE RESPIRATORY PROTECTION"; note = "PM10 and Gas caution."; }
-        else if (isCoCau) { status = "CAUTION: MOVE TO CLEANER AIR ZONE"; note = "CO caution."; }
-        else if (isGasCau) { status = "CAUTION: CHECK COMBUSTION SOURCES NOW"; note = "Gas caution."; }
-        else if (isPm10Cau) { status = "CAUTION: IMPROVE VENTILATION NOW"; note = "PM10 caution."; }
-        else if (isPm25Cau) { status = "CAUTION: REDUCE DUST EXPOSURE NOW"; note = "PM2.5 caution."; }
-        else { status = "CAUTION: APPLY PPE AND REASSESS"; note = "Caution detected."; }
-    } else {
-        if (hum >= 95.0 && gas <= 130.0) {
-            status = "SAFE: CONTINUE WORK, NO EVACUATION";
-            note = "Extreme PM with extreme humidity indicates mist.";
-        } else if (hum > 70.0) {
-            status = "SAFE: CONTINUE TASKS WITH HYDRATION";
-            note = "Elevated humidity alone is not a pollutant hazard.";
-        } else {
-            status = "SAFE: CONTINUE OPERATIONS";
-            note = "All sensors normal.";
-        }
-    }
-
-    lcdRemark = status;
-    blynkFullRemark = "REMARKS: " + status + "\n\nNote: " + note;
-}
-
-void scrollRemark(String msg) {
-    static int pos = 0;
-    static unsigned long lastScroll = 0;
-    String displayMsg = "REMARK: " + msg + " ";
-    if (millis() - lastScroll > 350) {
-        lastScroll = millis();
-        lcd.setCursor(0, 3);
-        String toPrint = displayMsg.substring(pos, pos + 20);
-        while (toPrint.length() < 20) toPrint += " ";
-        lcd.print(toPrint);
-        pos++;
-        if (pos > displayMsg.length() - 20) pos = 0;
-    }
-}
+// Forward declarations
+float MQResistanceCalculation(int raw_adc);
+float MQCalibration(int pin);
+float getGasPPM(float Rs, GasCurve curve);
+void printReading(int adc, float Vs_measured, float Rs, float ppm, const char *gasName);
+int ppmToAdc(float ppm, GasCurve curve, float Ro_val);
 
 void setup() {
-    Serial.begin(115200);
-    Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Serial.begin(115200);
+  while (!Serial) { delay(10); }
 
-    pinMode(BUZZER_PIN, OUTPUT);
-    pinMode(RED_LED, OUTPUT);
-    pinMode(YELLOW_LED, OUTPUT);
-    pinMode(GREEN_LED, OUTPUT);
+  // Configure ADC resolution for ESP32
+  analogReadResolution(ADC_RESOLUTION);
 
-    lcd.init();
-    lcd.backlight();
+  // Optionally you can set attenuation to read larger voltages; we assume voltage divider ensures ADC <= 3.3V.
+  // analogSetPinAttenuation(MQ2_PIN, ADC_11db);  // uncomment only if you want different attenuation
 
-    lcd.setCursor(0, 0); lcd.print("WELCOME TO MILES!");
-    lcd.setCursor(0, 1); lcd.print("DATA STATION");
-    delay(2000);
-
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("CHECKING SD CARD...");
-    while (!SD.begin(SD_CS)) {
-        lcd.setCursor(0, 1); lcd.print("SD CARD: NOT FOUND");
-        delay(1000);
-    }
-
-    int fileNum = 1;
-    while (SD.exists("/MILES_S" + String(fileNum) + ".csv")) fileNum++;
-    fileName = "/MILES_S" + String(fileNum) + ".csv";
-
-    File file = SD.open(fileName, FILE_WRITE);
-    if (file) {
-        file.println("Timestamp,PM2.5,PM10,Temp,Hum,Gas,CO,Class,Remark");
-        file.close();
-    }
-
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("CONNECTING WIFI...");
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, pass);
-    lastWifiAttempt = millis();
-    unsigned long wifiStart = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 20000) {
-        delay(500);
-        lcd.print(".");
-    }
-
-    if (WiFi.status() == WL_CONNECTED) {
-        lcd.clear(); lcd.setCursor(0, 0); lcd.print("SYNCING TIME...");
-        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-        struct tm timeinfo;
-        int retry = 0;
-        while (!getLocalTime(&timeinfo) && retry < 10) {
-            delay(1000);
-            retry++;
-        }
-
-        lcd.setCursor(0, 1); lcd.print("TIME UPDATED!");
-        delay(1000);
-        rtcReady = true;
-    } else {
-        lcd.clear(); lcd.print("OFFLINE MODE");
-        delay(1000);
-    }
-
-    Blynk.config(BLYNK_AUTH_TOKEN);
-    blynkConfigured = true;
-    warmupStartMs = millis();
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("SAMPLING STARTED");
-
-    dht.begin();
-    while (Serial2.available()) {
-        Serial2.read();
-    }
-
-    lcd.clear();
+  Serial.println("MQ-2 ESP32 adapted sketch starting...");
+  Serial.println("Ensure the sensor is in clean air for calibration.");
+  // Initialize Preferences and attempt to load saved Ro
+  prefs.begin("mq2", false);
+  float storedRo = prefs.getFloat("Ro", -1.0f);
+  if (storedRo > 0.0f) {
+    Ro = storedRo;
+    Serial.print("Loaded saved Ro="); Serial.print(Ro); Serial.println(" ohms");
+  } else {
+    // Calibrate Ro (blocking boot calibration)
+    Ro = MQCalibration(MQ2_PIN);
+    Serial.print("Calibration complete. Ro=");
+    Serial.print(Ro);
+    Serial.println(" ohms");
+    prefs.putFloat("Ro", Ro);
+    Serial.println("Ro saved to preferences.");
+  }
+  // compute ADC thresholds for caution/hazard using current Ro
+  adcCaution = ppmToAdc(200.0f, Smoke_Curve, Ro);
+  adcHazard  = ppmToAdc(500.0f, Smoke_Curve, Ro);
+  Serial.print("ADC threshold - Caution: "); Serial.println(adcCaution);
+  Serial.print("ADC threshold - Hazard : "); Serial.println(adcHazard);
+  lastSampleMillis = millis();
 }
 
 void loop() {
-    manageConnections();
-    Blynk.run();
+  unsigned long now = millis();
 
-    unsigned long now = millis();
-    if (now - lastRead >= 5000) {
-        lastRead = now;
-        data.temp = dht.readTemperature();
-        data.hum = dht.readHumidity();
-        // MQ2 ADC to PPM conversion (Power Law Formula - RL=10kΩ, R0=24539.77Ω)
-        float adc = analogRead(MQ2_PIN);
-        float vout = (adc / 4095.0) * 5.0;
-        float rs = ((5.0 - vout) / vout) * 10000.0;
-        float ratio = 24539.77 / rs;  // Inverted ratio for proper smoke detection
-        data.gas = 3616.1 * pow(ratio, 2.675);
-        if (data.gas < 0.0) data.gas = 0.0;
-        data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
-        if (data.co < 2.0) data.co = 2.0;
+  if (now - lastSampleMillis >= SAMPLE_INTERVAL) {
+    lastSampleMillis = now;
 
-        float pm25Read = 0.0, pm10Read = 0.0;
-        if (readPMS7003Frame(pm25Read, pm10Read, 1200)) {
-            data.pm2_5 = pm25Read;
-            data.pm10 = pm10Read;
-            hasValidPM = true;
-        } else if (!hasValidPM) {
-            data.pm2_5 = 0.0;
-            data.pm10 = 0.0;
-        }
+    int adc = analogRead(MQ2_PIN);
+    float Vadc = (adc / ADC_MAX) * ADC_VREF;         // measured ADC voltage at ADC pin
+    float Vs = Vadc * VOLTAGE_DIVIDER_SCALAR;       // estimate sensor Vout (accounting for divider)
+    float Rs = MQResistanceCalculation(adc);        // sensor resistance (ohms), uses RL_VALUE and SENSOR_VCC
 
-        float input[7] = {data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, 12.0};
-        lastClass = predict(input);
-        processDecisions(lastClass, data.pm2_5, data.pm10, data.co, data.gas, data.hum, data.temp);
+    // Calculate PPM for each gas (using Ro baseline)
+    float smoke_ppm = getGasPPM(Rs, Smoke_Curve);
+    float lpg_ppm = getGasPPM(Rs, LPG_Curve); // placeholder until tuned
+    float co_ppm = getGasPPM(Rs, CO_Curve);   // placeholder until tuned
 
-        PendingReading reading;
-        reading.timestamp = getTimeString();
-        reading.pm2_5 = data.pm2_5;
-        reading.pm10 = data.pm10;
-        reading.temp = data.temp;
-        reading.hum = data.hum;
-        reading.gas = data.gas;
-        reading.co = data.co;
-        reading.cls = lastClass;
-        reading.remark = lcdRemark;
+    // Print readings for debugging and calibration monitoring
+    Serial.println("---- Measurement ----");
+    printReading(adc, Vs, Rs, smoke_ppm, Smoke_Curve.name);
+    Serial.print("LPG (est): "); Serial.println(lpg_ppm);
+    Serial.print("CO  (est): "); Serial.println(co_ppm);
+    Serial.println("---------------------");
+  }
 
-        File file = SD.open(fileName, FILE_APPEND);
-        if (file) {
-            file.printf("%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s\n",
-                        reading.timestamp.c_str(), reading.pm2_5, reading.pm10, reading.temp, reading.hum, reading.gas, reading.co, reading.cls, reading.remark.c_str());
-            file.close();
-        }
-
-        if (Blynk.connected()) {
-            flushPendingReadings();
-            sendReadingToBlynk(reading);
-        } else {
-            queuePendingReading(reading);
-        }
-
-        digitalWrite(GREEN_LED, (lcdRemark.startsWith("SAFE")));
-        digitalWrite(YELLOW_LED, (lcdRemark.startsWith("CAUTION")));
-        digitalWrite(RED_LED, (lcdRemark.startsWith("HAZARDOUS")));
-        digitalWrite(BUZZER_PIN, (lcdRemark.startsWith("HAZARDOUS")) ? HIGH : LOW);
-
-        lcd.setCursor(0, 0); lcd.print("P2.5:"); lcd.print((int)data.pm2_5); lcd.print("  ");
-        lcd.setCursor(11, 0); lcd.print("P10:"); lcd.print((int)data.pm10); lcd.print("  ");
-        lcd.setCursor(0, 1); lcd.print("GAS:"); lcd.print((int)data.gas); lcd.print("  ");
-        lcd.setCursor(11, 1); lcd.print("CO :"); lcd.print((int)data.co); lcd.print("  ");
-        lcd.setCursor(0, 2); lcd.print("T:"); lcd.print(data.temp, 1); lcd.print("C ");
-        lcd.setCursor(11, 2); lcd.print("H:"); lcd.print(data.hum, 0); lcd.print("% ");
+  // Check for serial command to recalibrate Ro (send 'c')
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'c' || c == 'C') {
+      Serial.println("Manual recalibration requested...");
+      Ro = MQCalibration(MQ2_PIN);
+      prefs.putFloat("Ro", Ro);
+      Serial.print("New Ro="); Serial.print(Ro); Serial.println(" ohms");
+      adcCaution = ppmToAdc(200.0f, Smoke_Curve, Ro);
+      adcHazard  = ppmToAdc(500.0f, Smoke_Curve, Ro);
+      Serial.print("ADC threshold - Caution: "); Serial.println(adcCaution);
+      Serial.print("ADC threshold - Hazard : "); Serial.println(adcHazard);
     }
+  }
 
-    if (millis() - warmupStartMs < WARMUP_MS) {
-        unsigned long remaining = (WARMUP_MS - (millis() - warmupStartMs)) / 1000;
-        lcd.setCursor(0, 3);
-        String warmupMsg = "WARMUP: " + String(remaining) + "s left   ";
-        while (warmupMsg.length() < 20) warmupMsg += " ";
-        lcd.print(warmupMsg.substring(0, 20));
-    }
-
-    scrollRemark(lcdRemark);
+  // <-- Other non-blocking tasks can run here -->
 }
+
+/*
+  MQResistanceCalculation:
+  Given the raw ADC reading (0..ADC_MAX), computes RS (sensor resistance).
+  Math:
+    Vadc = (adc / ADC_MAX) * ADC_VREF                      // measured voltage at ADC pin
+    Vsensor = Vadc * VOLTAGE_DIVIDER_SCALAR               // inverted divider to get actual sensor Vout
+    RS = (Vcc - Vsensor) / Vsensor * RL_VALUE             // voltage divider between RS and RL
+*/
+float MQResistanceCalculation(int raw_adc) {
+  if (raw_adc <= 0) raw_adc = 1;
+  if (raw_adc >= (int)ADC_MAX) raw_adc = ADC_MAX - 1;
+
+  float Vadc = (raw_adc / ADC_MAX) * ADC_VREF;
+  float Vsensor = Vadc * VOLTAGE_DIVIDER_SCALAR;
+  // protect division by zero
+  if (Vsensor <= 0.000001f) Vsensor = 0.000001f;
+  float Rs = ((SENSOR_VCC - Vsensor) / Vsensor) * RL_VALUE;
+  return Rs;
+}
+
+/*
+  MQCalibration:
+  Samples RS multiple times in clean air and computes Ro.
+  Ro = average_RS / RO_CLEAN_AIR_FACTOR
+  (RO_CLEAN_AIR_FACTOR is the typical Rs/Ro ratio in clean air from datasheet ~9.83)
+*/
+float MQCalibration(int pin) {
+  float rs_sum = 0.0f;
+  Serial.println("Starting Ro calibration. Please ensure sensor is in clean air...");
+  for (int i = 0; i < CALIBRATION_SAMPLE_TIMES; i++) {
+    int adc = analogRead(pin);
+    float rs = MQResistanceCalculation(adc);
+    rs_sum += rs;
+    Serial.print("Cal sample "); Serial.print(i+1);
+    Serial.print(" / "); Serial.print(CALIBRATION_SAMPLE_TIMES);
+    Serial.print(" : Rs=");
+    Serial.println(rs);
+    delay(CALIBRATION_SAMPLE_INTERVAL); // calibration can block briefly
+  }
+  float rs_avg = rs_sum / CALIBRATION_SAMPLE_TIMES;
+  float ro_val = rs_avg / RO_CLEAN_AIR_FACTOR;
+  return ro_val;
+}
+
+/*
+  getGasPPM:
+  Convert Rs (ohms) and baseline Ro into ppm for a given gas curve.
+
+  The general power-law/log approach (consistent with many MQ references):
+
+    ppm = A * (Ro / Rs)^B
+
+  This form comes from the curve fit where ppm increases as Rs decreases (gas increases). The
+  MQ datasheets often present Rs/Ro vs ppm log-log plots; you can convert slope/intercept
+  from such plots into A/B or derive A/B from two known points.
+
+  NOTE: Replace LPG_Curve and CO_Curve constants with values derived from the MQ-2 datasheet
+  curve fits for accurate LPG and CO readings. Smoke_Curve is set to A=3616.1, B=2.675 by default.
+*/
+float getGasPPM(float Rs, GasCurve curve) {
+  if (Ro <= 0.0f) return -1.0f; // not calibrated yet
+  // protect against division by zero
+  if (Rs <= 0.0f) Rs = 0.000001f;
+  float ratio = Ro / Rs;
+  // Handle placeholder curves that are not set
+  if (curve.A <= 1.0f && curve.B <= 1.0f && curve.A != 1.0f) {
+    // no-op placeholder check; fall through to compute something
+  }
+  float ppm = curve.A * pow(ratio, curve.B);
+  return ppm;
+}
+
+// Convert a target ppm to the expected raw ADC value using current constants and Ro
+int ppmToAdc(float ppm, GasCurve curve, float Ro_val) {
+  if (ppm <= 0.0f || Ro_val <= 0.0f) return -1;
+  float ratio = pow((ppm / curve.A), (1.0f / curve.B));
+  float Rs = Ro_val / ratio;
+  // compute Vout across RL: Vout = Vcc * (RL / (Rs + RL))
+  float Vout = (RL_VALUE * SENSOR_VCC) / (Rs + RL_VALUE);
+  float Vadc = Vout / VOLTAGE_DIVIDER_SCALAR;
+  int adc = (int)round((Vadc / ADC_VREF) * ADC_MAX);
+  if (adc < 0) adc = 0;
+  if (adc > (int)ADC_MAX) adc = (int)ADC_MAX;
+  return adc;
+}
+
+/*
+  Helper: prints key values in a readable format
+*/
+void printReading(int adc, float Vsensor, float Rs, float ppm, const char *gasName) {
+  Serial.print("ADC raw: "); Serial.print(adc);
+  Serial.print("  Vadc: "); Serial.print((adc / ADC_MAX) * ADC_VREF, 3);
+  Serial.print(" V  Vsensor: "); Serial.print(Vsensor, 3); Serial.print(" V");
+  Serial.print("  Rs: "); Serial.print(Rs, 1); Serial.print(" ohm");
+  Serial.print("  Ro: "); Serial.print(Ro, 1); Serial.print(" ohm");
+  Serial.print("  ");
+  Serial.print(gasName); Serial.print(": ");
+  Serial.print(ppm, 2);
+  Serial.println(" ppm");
+}
+
+/* 
+  How to derive A and B (brief):
+  - From MQ datasheet log-log plot for a gas you can take two points (ppm1, RsRo1) and (ppm2, RsRo2).
+  - Using model ppm = A * (Ro/Rs)^B you can solve for A and B:
+      log10(ppm) = log10(A) + B * log10(Ro/Rs)
+    Rearranged to find B and A from two known pairs.
+  - Many libraries provide fitted values; use those or perform your own regression.
+*/
