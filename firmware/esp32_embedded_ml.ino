@@ -204,12 +204,12 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
 
     bool isPm25Haz = (pm25 > 100.0);
     bool isPm10Haz = (pm10 > 230.0);
-    bool isGasHaz = (gas >= 500.0);  // UPDATED: MQ2 hazardous threshold (RL=10kΩ)
+    bool isGasHaz = (gas >= 176.0);
     bool isCoHaz = (co > 30.0);
 
     bool isPm25Cau = (pm25 >= 51.0);
     bool isPm10Cau = (pm10 >= 151.0);
-    bool isGasCau = (gas >= 200.0);  // UPDATED: MQ2 caution threshold (RL=10kΩ)
+    bool isGasCau = (gas >= 131.0);
     bool isCoCau = (co >= 10.0);
 
     int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
@@ -368,13 +368,8 @@ void loop() {
         lastRead = now;
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
-        // MQ2 ADC to PPM conversion (Power Law Formula - RL=10kΩ, R0=24539.77Ω)
-        float adc = analogRead(MQ2_PIN);
-        float vout = (adc / 4095.0) * 5.0;
-        float rs = ((5.0 - vout) / vout) * 10000.0;
-        float ratio = rs / 24539.77;
-        data.gas = 3616.1 * pow(ratio, -2.675);
-        if (data.gas < 0.0) data.gas = 0.0;
+        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - MQ2_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
+        if (data.gas < 30.0) data.gas = 30.0;
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
 
