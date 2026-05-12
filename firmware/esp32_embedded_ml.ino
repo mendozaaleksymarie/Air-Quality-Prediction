@@ -68,6 +68,12 @@ const unsigned long WARMUP_MS = 120000;
 #define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
 #define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
 
+#define RL_VALUE 10.0
+#define RO_CLEAN_AIR_FACTOR 9.83
+#define ADC_MAX 4095.0
+float SmokeCurve[3] = { 2.3, 0.53, -0.44 };
+float Ro = 0.0;
+
 struct PendingReading {
     String timestamp;
     float pm2_5;
@@ -270,6 +276,37 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
     blynkFullRemark = "REMARKS: " + status + "\n\nNote: " + note;
 }
 
+float MQResistanceCalculation(int raw_adc) {
+    if (raw_adc <= 0) raw_adc = 1;
+    if (raw_adc >= ADC_MAX) raw_adc = ADC_MAX - 1;
+    return ((float)RL_VALUE * (ADC_MAX - raw_adc) / raw_adc);
+}
+
+float MQCalibration(int mq_pin) {
+    float val = 0;
+    for (int i = 0; i < 50; i++) {
+        val += MQResistanceCalculation(analogRead(mq_pin));
+        delay(500);
+    }
+    val /= 50;
+    val /= RO_CLEAN_AIR_FACTOR;
+    return val;
+}
+
+float MQRead(int mq_pin) {
+    float rs = 0;
+    for (int i = 0; i < 5; i++) {
+        rs += MQResistanceCalculation(analogRead(mq_pin));
+        delay(50);
+    }
+    rs /= 5;
+    return rs;
+}
+
+float MQGetSmokePpm(float rs_ro_ratio) {
+    return pow(10.0, ((log10(rs_ro_ratio) - SmokeCurve[1]) / SmokeCurve[2]) + SmokeCurve[0]);
+}
+
 void scrollRemark(String msg) {
     static int pos = 0;
     static unsigned long lastScroll = 0;
@@ -352,6 +389,13 @@ void setup() {
     lcd.clear(); lcd.setCursor(0, 0); lcd.print("SAMPLING STARTED");
 
     dht.begin();
+    lcd.clear();
+    lcd.setCursor(0, 0); lcd.print("CALIBRATING MQ2...");
+    Ro = MQCalibration(MQ2_PIN);
+    Serial.print("MQ2 Ro calibrated: ");
+    Serial.println(Ro);
+    lcd.setCursor(0, 1); lcd.print("MQ2 Ro:"); lcd.print(Ro, 1);
+    delay(1500);
     while (Serial2.available()) {
         Serial2.read();
     }
@@ -368,7 +412,9 @@ void loop() {
         lastRead = now;
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
-        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - MQ2_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
+        float rs = MQRead(MQ2_PIN);
+        float rs_ro_ratio = rs / Ro;
+        data.gas = MQGetSmokePpm(rs_ro_ratio);
         if (data.gas < 30.0) data.gas = 30.0;
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
