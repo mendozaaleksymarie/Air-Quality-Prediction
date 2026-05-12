@@ -61,22 +61,12 @@ const unsigned long BLYNK_RETRY_MS = 5000;
 const unsigned long WARMUP_MS = 120000;
 
 // --- CALIBRATION CONSTANTS (Updated 2026-04-03) ---
-#define CALIBRATION_VERSION 3.0
-#define CALIBRATION_DATE "2026-05-12"
+#define CALIBRATION_VERSION 2.0
+#define CALIBRATION_DATE "2026-04-03"
+#define MQ2_OFFSET_CALIBRATED 510.0   // Baseline ADC avg: 2210 | Target: 30 ppm (Safe)
 #define MQ7_OFFSET_CALIBRATED 52.0    // Baseline ADC avg: 2333 | Target: 5 ppm (Safe)
 #define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
 #define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
-
-// --- MQ2 SENSOR CALIBRATION CONSTANTS ---
-#define RL_VALUE 10.0f                // Load resistor (kΩ)
-#define ADC_MAX 4095.0f               // 12-bit ADC
-#define RO_CLEAN_AIR_FACTOR 9.83f     // Rs/Ro ratio in clean air
-
-// --- SMOKE CURVE PARAMETERS (from MQ-2 datasheet) ---
-const float SmokeCurve[3] = { 2.3f, 0.53f, -0.44f }; // [a, b, c] for ppm = 10^((log10(ratio)-b)/c+a)
-
-// --- MQ2 Ro VALUE (calibrated at startup) ---
-float Ro_MQ2 = 10.0f; // Will be calibrated in setup()
 
 struct PendingReading {
     String timestamp;
@@ -177,41 +167,6 @@ String getTimeString() {
     char timeStr[25];
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
     return String(timeStr);
-}
-
-// --- MQ2 CONVERSION FUNCTIONS ---
-// Step 1: Calculate sensor resistance from raw ADC
-float MQResistanceCalculation(int raw_adc) {
-    if (raw_adc <= 0) raw_adc = 1;
-    if (raw_adc >= (int)ADC_MAX) raw_adc = (int)ADC_MAX - 1;
-    return (RL_VALUE * (ADC_MAX - raw_adc) / raw_adc);
-}
-
-// Step 2: Calibrate Ro baseline in clean air
-float MQCalibration(int mq_pin) {
-    float rs_sum = 0.0f;
-    for (int i = 0; i < 50; i++) {
-        rs_sum += MQResistanceCalculation(analogRead(mq_pin));
-        delay(100);
-    }
-    float rs_avg = rs_sum / 50.0f;
-    float ro_val = rs_avg / RO_CLEAN_AIR_FACTOR;
-    return ro_val;
-}
-
-// Step 3: Read and average sensor resistance
-float MQRead(int mq_pin) {
-    float rs = 0.0f;
-    for (int i = 0; i < 5; i++) {
-        rs += MQResistanceCalculation(analogRead(mq_pin));
-        delay(50);
-    }
-    return (rs / 5.0f);
-}
-
-// Step 4: Convert Rs/Ro ratio to PPM using log-log curve fit
-float MQGetGasPPM(float rs_ro_ratio, const float *pcurve) {
-    return pow(10.0f, ((log10(rs_ro_ratio) - pcurve[1]) / pcurve[2]) + pcurve[0]);
 }
 
 // Robust PMS7003 reader
@@ -393,15 +348,6 @@ void setup() {
 
     Blynk.config(BLYNK_AUTH_TOKEN);
     blynkConfigured = true;
-    
-    // --- MQ2 CALIBRATION IN CLEAN AIR ---
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("CALIBRATING MQ2...");
-    lcd.setCursor(0, 1); lcd.print("Please wait...");
-    Ro_MQ2 = MQCalibration(MQ2_PIN);
-    Serial.print("[MQ2 Calibration] Ro = ");
-    Serial.print(Ro_MQ2, 2);
-    Serial.println(" kOhm");
-    
     warmupStartMs = millis();
     lcd.clear(); lcd.setCursor(0, 0); lcd.print("SAMPLING STARTED");
 
@@ -422,13 +368,8 @@ void loop() {
         lastRead = now;
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
-        
-        // --- MQ2 CONVERSION: ADC → PPM (Log-log curve fit for Smoke) ---
-        float rs = MQRead(MQ2_PIN);
-        float ratio = rs / Ro_MQ2;
-        data.gas = MQGetGasPPM(ratio, SmokeCurve);
+        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - MQ2_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.gas < 30.0) data.gas = 30.0;
-        
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
 
