@@ -63,16 +63,10 @@ const unsigned long WARMUP_MS = 120000;
 // --- CALIBRATION CONSTANTS (Updated 2026-04-03) ---
 #define CALIBRATION_VERSION 2.0
 #define CALIBRATION_DATE "2026-04-03"
+#define MQ2_OFFSET_CALIBRATED 510.0   // Baseline ADC avg: 2210 | Target: 30 ppm (Safe)
 #define MQ7_OFFSET_CALIBRATED 52.0    // Baseline ADC avg: 2333 | Target: 5 ppm (Safe)
 #define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
 #define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
-
-#define MQ2_RL_VALUE 10.0
-#define MQ2_RO_CLEAN_AIR_FACTOR 9.83
-#define ADC_MAX 4095
-
-float MQ2SmokeCurve[3] = { 2.3, 0.53, -0.44 };
-float MQ2Ro = 10.0;
 
 struct PendingReading {
     String timestamp;
@@ -173,36 +167,6 @@ String getTimeString() {
     char timeStr[25];
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
     return String(timeStr);
-}
-
-float MQ2ResistanceCalculation(int raw_adc) {
-    if (raw_adc <= 0) raw_adc = 1;
-    if (raw_adc >= ADC_MAX) raw_adc = ADC_MAX - 1;
-    return (MQ2_RL_VALUE * (ADC_MAX - raw_adc) / raw_adc);
-}
-
-float MQ2Calibration(int mq_pin) {
-    float val = 0.0;
-    for (int i = 0; i < 50; i++) {
-        val += MQ2ResistanceCalculation(analogRead(mq_pin));
-        delay(500);
-    }
-    val /= 50.0;
-    val /= MQ2_RO_CLEAN_AIR_FACTOR;
-    return val;
-}
-
-float MQ2Read(int mq_pin) {
-    float rs = 0.0;
-    for (int i = 0; i < 5; i++) {
-        rs += MQ2ResistanceCalculation(analogRead(mq_pin));
-        delay(50);
-    }
-    return rs / 5.0;
-}
-
-int MQ2GetSmokePpm(float rs_ro_ratio) {
-    return (int)pow(10.0, ((log10(rs_ro_ratio) - MQ2SmokeCurve[1]) / MQ2SmokeCurve[2]) + MQ2SmokeCurve[0]);
 }
 
 // Robust PMS7003 reader
@@ -393,15 +357,6 @@ void setup() {
     }
 
     lcd.clear();
-
-    // Calibrate MQ2 in safe environment before sampling
-    lcd.setCursor(0, 0); lcd.print("CALIBRATING MQ2...");
-    MQ2Ro = MQ2Calibration(MQ2_PIN);
-    Serial.print("MQ2 Ro calibrated: ");
-    Serial.println(MQ2Ro);
-    lcd.setCursor(0, 1); lcd.print("MQ2 Ro:"); lcd.print(MQ2Ro, 1);
-    delay(1500);
-    lcd.clear();
 }
 
 void loop() {
@@ -413,9 +368,7 @@ void loop() {
         lastRead = now;
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
-        float mq2_rs = MQ2Read(MQ2_PIN);
-        float mq2_ratio = mq2_rs / MQ2Ro;
-        data.gas = MQ2GetSmokePpm(mq2_ratio);
+        data.gas = ((analogRead(MQ2_PIN) / 4095.0) * 1000.0) - MQ2_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.gas < 30.0) data.gas = 30.0;
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
