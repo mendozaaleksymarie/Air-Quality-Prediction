@@ -872,7 +872,7 @@ def apply_misting_detection(row):
     gas = row.get('gas', 0)
     
     # MISTING SIGNATURE: Extreme humidity + normal gas = water droplets, not pollution
-    if humidity >= 95 and gas < 100:
+    if humidity >= 95 and gas <= 23.7:
         # Add misting remark
         row['_sensor_combo_key'] = 'misting_detected'
         row['_sensor_combo_remark'] = get_scenario_remark(3)  # Scenario 3: MISTING
@@ -959,8 +959,8 @@ def apply_multi_sensor_escalation(row):
     pm10_hazardous_threshold = 231    # Hazardous: > 230
     
     # MQ-2 Gas thresholds (ppm)
-    gas_caution_threshold = 131       # Caution range: 131-175
-    gas_hazardous_threshold = 176     # Hazardous: ≥ 176
+    gas_caution_threshold = 23.75     # Caution range: 23.75-27.3
+    gas_hazardous_threshold = 27.4    # Hazardous: ≥ 27.4
     
     # MQ-7 CO thresholds (ppm)
     co_caution_threshold = 10         # Caution range: 10-30
