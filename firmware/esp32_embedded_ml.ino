@@ -210,12 +210,12 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
 
     bool isPm25Haz = (pm25 > 100.0);
     bool isPm10Haz = (pm10 > 230.0);
-    bool isGasHaz = (gas >= 27.4);
+    bool isGasHaz = (gas >= 176.0);
     bool isCoHaz = (co > 30.0);
 
     bool isPm25Cau = (pm25 >= 51.0);
     bool isPm10Cau = (pm10 >= 151.0);
-    bool isGasCau = (gas >= 23.75);
+    bool isGasCau = (gas >= 131.0);
     bool isCoCau = (co >= 10.0);
 
     int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
@@ -227,7 +227,7 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
         cls = 1;
     }
 
-    if (hum >= 95.0 && gas <= 23.7 && Tw <= 35.0) {
+    if (hum >= 95.0 && gas <= 130.0 && Tw <= 35.0) {
         cls = 0;
     }
 
@@ -260,7 +260,7 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
         else if (isPm25Cau) { status = "CAUTION: REDUCE DUST EXPOSURE NOW"; note = "PM2.5 caution."; }
         else { status = "CAUTION: APPLY PPE AND REASSESS"; note = "Caution detected."; }
     } else {
-        if (hum >= 95.0 && gas <= 23.7) {
+        if (hum >= 95.0 && gas <= 130.0) {
             status = "SAFE: CONTINUE WORK, NO EVACUATION";
             note = "Extreme PM with extreme humidity indicates mist.";
         } else if (hum > 70.0) {
