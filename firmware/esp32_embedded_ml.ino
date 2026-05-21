@@ -415,6 +415,7 @@ void loop() {
         float rs = MQRead(MQ2_PIN);
         float rs_ro_ratio = rs / Ro;
         data.gas = MQGetSmokePpm(rs_ro_ratio);
+        if (data.gas < 30.0) data.gas = 30.0;
         data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
         if (data.co < 2.0) data.co = 2.0;
 
