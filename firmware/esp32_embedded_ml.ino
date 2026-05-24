@@ -98,6 +98,160 @@ PendingReading pendingReadings[MAX_PENDING_READINGS];
 int pendingHead = 0;
 int pendingCount = 0;
 
+// ════════════════════════════════════════════════════════════════════════
+// SENSOR HISTORY FOR ENGINEERED FEATURES (200-tree model)
+// ════════════════════════════════════════════════════════════════════════
+struct SensorReading {
+    float pm2_5, pm10, temp, hum, gas, co, wet_bulb;
+    unsigned long timestamp;
+};
+
+const int HISTORY_SIZE = 10;  // Keep last 10 readings (50 seconds at 5s interval)
+SensorReading sensorHistory[HISTORY_SIZE];
+int historyIndex = 0;
+bool historyFull = false;
+
+void addToHistory(float pm25, float pm10, float t, float h, float g, float c, float wb) {
+    sensorHistory[historyIndex].pm2_5 = pm25;
+    sensorHistory[historyIndex].pm10 = pm10;
+    sensorHistory[historyIndex].temp = t;
+    sensorHistory[historyIndex].hum = h;
+    sensorHistory[historyIndex].gas = g;
+    sensorHistory[historyIndex].co = c;
+    sensorHistory[historyIndex].wet_bulb = wb;
+    sensorHistory[historyIndex].timestamp = millis();
+    
+    historyIndex = (historyIndex + 1) % HISTORY_SIZE;
+    if (historyIndex == 0) historyFull = true;
+}
+
+float computeVolatility(int sensorIndex) {
+    if (!historyFull && historyIndex < 2) return 0.0f;  // Not enough data
+    
+    int validCount = historyFull ? HISTORY_SIZE : historyIndex;
+    if (validCount < 2) return 0.0f;
+    
+    float mean = 0.0f, variance = 0.0f;
+    for (int i = 0; i < validCount; i++) {
+        float val = (sensorIndex == 0) ? sensorHistory[i].pm2_5 :
+                    (sensorIndex == 1) ? sensorHistory[i].pm10 :
+                    (sensorIndex == 2) ? sensorHistory[i].gas :
+                    sensorHistory[i].co;
+        mean += val;
+    }
+    mean /= validCount;
+    
+    for (int i = 0; i < validCount; i++) {
+        float val = (sensorIndex == 0) ? sensorHistory[i].pm2_5 :
+                    (sensorIndex == 1) ? sensorHistory[i].pm10 :
+                    (sensorIndex == 2) ? sensorHistory[i].gas :
+                    sensorHistory[i].co;
+        variance += (val - mean) * (val - mean);
+    }
+    variance /= validCount;
+    return sqrt(variance);
+}
+
+float computeTrend(int sensorIndex) {
+    if (!historyFull && historyIndex < 3) return 0.0f;  // Not enough data
+    
+    int current = (historyIndex - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+    int prev1 = (historyIndex - 2 + HISTORY_SIZE) % HISTORY_SIZE;
+    int prev2 = (historyIndex - 3 + HISTORY_SIZE) % HISTORY_SIZE;
+    
+    float curr_val = (sensorIndex == 0) ? sensorHistory[current].pm2_5 :
+                     (sensorIndex == 1) ? sensorHistory[current].pm10 :
+                     (sensorIndex == 2) ? sensorHistory[current].gas :
+                     sensorHistory[current].co;
+    float prev1_val = (sensorIndex == 0) ? sensorHistory[prev1].pm2_5 :
+                      (sensorIndex == 1) ? sensorHistory[prev1].pm10 :
+                      (sensorIndex == 2) ? sensorHistory[prev1].gas :
+                      sensorHistory[prev1].co;
+    float prev2_val = (sensorIndex == 0) ? sensorHistory[prev2].pm2_5 :
+                      (sensorIndex == 1) ? sensorHistory[prev2].pm10 :
+                      (sensorIndex == 2) ? sensorHistory[prev2].gas :
+                      sensorHistory[prev2].co;
+    
+    // Linear trend: (current - prev2) / 2
+    return (curr_val - prev2_val) / 2.0f;
+}
+
+void buildFullFeatureArray(float input[35], float pm25, float pm10, float t, float h, float g, float c, float wb) {
+    // Core 8 features (features 0-7)
+    input[0] = pm25;
+    input[1] = pm10;
+    input[2] = t;
+    input[3] = h;
+    input[4] = g;
+    input[5] = c;
+    input[6] = getCurrentHour();  // time_of_day (0-23 from RTC)
+    input[7] = wb;  // wet_bulb
+    
+    // Feature ratios (features 8-11)
+    input[8] = (pm10 > 0.1f) ? (pm25 / pm10) : 0.0f;  // PM2.5/PM10 ratio
+    input[9] = (c > 0.1f) ? (g / c) : 0.0f;  // Gas/CO ratio
+    input[10] = (h > 0.1f) ? (g / h) : 0.0f;  // Gas/Humidity ratio
+    input[11] = (h > 0.1f) ? (pm25 / h) : 0.0f;  // PM2.5/Humidity ratio
+    
+    // Deltas - rate of change (features 12-14)
+    if (historyFull || historyIndex > 0) {
+        int prev_idx = (historyIndex - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+        input[12] = pm25 - sensorHistory[prev_idx].pm2_5;  // ΔPM2.5
+        input[13] = g - sensorHistory[prev_idx].gas;  // ΔGas
+        input[14] = c - sensorHistory[prev_idx].co;  // ΔCO
+    } else {
+        input[12] = 0.0f;
+        input[13] = 0.0f;
+        input[14] = 0.0f;
+    }
+    
+    // Lag-1 features (features 15-17) - previous reading
+    if (historyFull || historyIndex > 0) {
+        int prev_idx = (historyIndex - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+        input[15] = sensorHistory[prev_idx].pm2_5;  // PM2.5(t-1)
+        input[16] = sensorHistory[prev_idx].gas;  // Gas(t-1)
+        input[17] = sensorHistory[prev_idx].co;  // CO(t-1)
+    } else {
+        input[15] = 0.0f;
+        input[16] = 0.0f;
+        input[17] = 0.0f;
+    }
+    
+    // Lag-2 features (features 18-20) - two readings back
+    if (historyFull || historyIndex > 1) {
+        int prev2_idx = (historyIndex - 2 + HISTORY_SIZE) % HISTORY_SIZE;
+        input[18] = sensorHistory[prev2_idx].pm2_5;  // PM2.5(t-2)
+        input[19] = sensorHistory[prev2_idx].gas;  // Gas(t-2)
+        input[20] = sensorHistory[prev2_idx].co;  // CO(t-2)
+    } else {
+        input[18] = 0.0f;
+        input[19] = 0.0f;
+        input[20] = 0.0f;
+    }
+    
+    // Volatility features (features 21-23) - variability over time
+    input[21] = computeVolatility(0);  // PM2.5 volatility
+    input[22] = computeVolatility(2);  // Gas volatility
+    input[23] = computeVolatility(3);  // CO volatility
+    
+    // Trend features (features 24-26) - direction & momentum
+    input[24] = computeTrend(0);  // PM2.5 trend
+    input[25] = computeTrend(2);  // Gas trend
+    input[26] = computeTrend(3);  // CO trend
+    
+    // Anomaly flags (features 27-30) - extreme value detection
+    input[27] = (pm25 > 100.0f) ? 1.0f : 0.0f;  // High PM2.5 flag
+    input[28] = (c > 30.0f) ? 1.0f : 0.0f;  // High CO flag
+    input[29] = (g > 63.0f) ? 1.0f : 0.0f;  // High Gas flag
+    input[30] = (t > 35.0f) ? 1.0f : 0.0f;  // High temp flag
+    
+    // Multi-sensor correlation flags (features 31-34)
+    input[31] = ((pm25 > 50.0f) && (c > 9.0f)) ? 1.0f : 0.0f;  // PM+CO both high
+    input[32] = ((g > 40.0f) && (c > 9.0f)) ? 1.0f : 0.0f;  // Gas+CO both high
+    input[33] = (pm25 > 50.0f) && (g > 40.0f) ? 1.0f : 0.0f;  // PM+Gas both high
+    input[34] = (wb > 30.0f) && (c > 9.0f) ? 1.0f : 0.0f;  // Heat+CO both high
+}
+
 void queuePendingReading(const PendingReading &reading) {
     pendingReadings[pendingHead] = reading;
     pendingHead = (pendingHead + 1) % MAX_PENDING_READINGS;
@@ -180,6 +334,15 @@ String getTimeString() {
     char timeStr[25];
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
     return String(timeStr);
+}
+
+// Get current hour (0-23) from RTC for time_of_day feature
+float getCurrentHour() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        return 12.0f;  // Default to noon if RTC not synced
+    }
+    return (float)timeinfo.tm_hour;  // Returns 0-23
 }
 
 // Robust PMS7003 reader
@@ -446,7 +609,15 @@ void loop() {
             data.pm10 = 0.0;
         }
 
-        float input[7] = {data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, 12.0};
+        // Add to history for engineered features
+        float wet_bulb = data.temp * atan(0.151977 * pow(data.hum + 8.313659, 0.5)) + atan(data.temp + data.hum) - atan(data.hum - 1.676331) + 0.00391838 * pow(data.hum, 1.5) * atan(0.023101 * data.hum) - 4.686035;
+        addToHistory(data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, wet_bulb);
+        
+        // Build full 35-feature array with engineered features
+        float input[35];
+        buildFullFeatureArray(input, data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, wet_bulb);
+        
+        // Predict using 200-tree model
         lastClass = predict(input);
         processDecisions(lastClass, data.pm2_5, data.pm10, data.co, data.gas, data.hum, data.temp);
 

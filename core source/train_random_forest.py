@@ -1447,8 +1447,8 @@ def train_model(X, y):
       - Scenario 7 (High Humidity): 673 rows ← Benign humidity context
       - Scenario 8 (Field Data): 14,989 rows ← Real-world from 5 construction sites
     
-    HYPERPARAMETER GRID (540 parameter combinations, same as before):
-      n_estimators: [50, 100, 200] trees
+    HYPERPARAMETER GRID (135 parameter combinations with 200 trees):
+      n_estimators: [200] trees (safety-critical: better minority class detection)
       max_depth: [None, 10, 20, 30] levels
       min_samples_split: [2, 5, 10] samples
       min_samples_leaf: [1, 2, 4] samples
@@ -1516,12 +1516,12 @@ def train_model(X, y):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Hyperparameter tuning with GridSearchCV (540 combinations)
-    print("\nPerforming hyperparameter tuning (5-fold CV, 540 parameter combinations)...")
+    # Hyperparameter tuning with GridSearchCV (135 combinations with 200 trees)
+    print("\nPerforming hyperparameter tuning (5-fold CV, 135 parameter combinations with 200 trees)...")
     print("✓ OPTIMIZATION 1: Adding class_weight='balanced' for Caution class detection...")
     
     param_grid = {
-        'n_estimators': [50, 100, 200],
+        'n_estimators': [200],  # Force 200 trees for safety-critical minority class detection
         'max_depth': [None, 10, 20, 30],
         'min_samples_split': [2, 5, 10],
         'min_samples_leaf': [1, 2, 4]
