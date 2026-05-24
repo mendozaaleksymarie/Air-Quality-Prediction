@@ -60,13 +60,20 @@ const unsigned long WIFI_RETRY_MS = 15000;
 const unsigned long BLYNK_RETRY_MS = 5000;
 const unsigned long WARMUP_MS = 120000;
 
-// --- CALIBRATION CONSTANTS (Updated 2026-04-03) ---
-#define CALIBRATION_VERSION 2.0
-#define CALIBRATION_DATE "2026-04-03"
+// --- CALIBRATION CONSTANTS (Updated 2026-05-25) ---
+#define CALIBRATION_VERSION 3.0
+#define CALIBRATION_DATE "2026-05-25"
 #define MQ2_OFFSET_CALIBRATED 510.0   // Baseline ADC avg: 2210 | Target: 30 ppm (Safe)
-#define MQ7_OFFSET_CALIBRATED 52.0    // Baseline ADC avg: 2333 | Target: 5 ppm (Safe)
 #define CALIB_BASELINE_TEMP 34.3      // Reference temperature during calibration (°C)
 #define CALIB_BASELINE_HUM 51.9       // Reference humidity during calibration (%)
+
+// MQ7 (CO) Sensor - Exponential Calibration Formula (v3.0)
+#define MQ7_VIN 3.3                   // Reference voltage
+#define MQ7_ADC_MAX 4095.0            // 12-bit ADC resolution
+#define MQ7_RL 10000.0                // Load resistance (ohms)
+#define MQ7_RO 2120.0                 // Clean air resistance (ohms)
+#define MQ7_COEFF 99.042              // Calibration coefficient
+#define MQ7_EXPONENT -1.518           // Calibration exponent
 
 #define RL_VALUE 10.0
 #define RO_CLEAN_AIR_FACTOR 9.83
@@ -208,15 +215,16 @@ bool readPMS7003Frame(float &pm25, float &pm10, uint32_t timeoutMs = 1200) {
 void processDecisions(int cls, float pm25, float pm10, float co, float gas, float hum, float temp) {
     float Tw = temp * atan(0.151977 * pow(hum + 8.313659, 0.5)) + atan(temp + hum) - atan(hum - 1.676331) + 0.00391838 * pow(hum, 1.5) * atan(0.023101 * hum) - 4.686035;
 
+    // Sensor Thresholds - RA 8749 IRR Standards
     bool isPm25Haz = (pm25 > 100.0);
     bool isPm10Haz = (pm10 > 230.0);
     bool isGasHaz = (gas >= 63.0);
-    bool isCoHaz = (co > 30.0);
+    bool isCoHaz = (co > 30.0);              // MQ-7: Hazardous > 30 ppm (RA 8749 IRR)
 
     bool isPm25Cau = (pm25 >= 51.0);
     bool isPm10Cau = (pm10 >= 151.0);
     bool isGasCau = (gas >= 40.0);
-    bool isCoCau = (co >= 10.0);
+    bool isCoCau = (co > 9.0 && co <= 30.0); // MQ-7: Caution 10-30 ppm (RA 8749 IRR)
 
     int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
     int hazardCount = isPm25Haz + isPm10Haz + isGasHaz + isCoHaz;
@@ -415,9 +423,18 @@ void loop() {
         float rs = MQRead(MQ2_PIN);
         float rs_ro_ratio = rs / Ro;
         data.gas = MQGetSmokePpm(rs_ro_ratio);
-        if (data.gas < 30.0) data.gas = 30.0;
-        data.co = ((analogRead(MQ7_PIN) / 4095.0) * 100.0) - MQ7_OFFSET_CALIBRATED;  // Updated calibration (v2.0)
-        if (data.co < 2.0) data.co = 2.0;
+        
+        // MQ7 (CO) Conversion - Exponential Calibration (v3.0)
+        // Step 1: Vout = MQ7_ADC × (3.3 / 4095)
+        // Step 2: Rs = 10,000 × (3.3 - Vout) / Vout
+        // Step 3: ratio = Rs / 2120
+        // Step 4: MQ7_PPM = 99.042 × ratio^(-1.518)
+        float mq7_adc = analogRead(MQ7_PIN);
+        float mq7_vout = mq7_adc * (MQ7_VIN / MQ7_ADC_MAX);
+        float mq7_rs = MQ7_RL * (MQ7_VIN - mq7_vout) / mq7_vout;
+        float mq7_ratio = mq7_rs / MQ7_RO;
+        data.co = MQ7_COEFF * pow(mq7_ratio, MQ7_EXPONENT);
+        if (data.co < 0.0) data.co = 0.0;
 
         float pm25Read = 0.0, pm10Read = 0.0;
         if (readPMS7003Frame(pm25Read, pm10Read, 1200)) {
