@@ -1278,6 +1278,11 @@ def preprocess_data(df):
     # Make a copy to avoid modifying original
     df = df.copy()
     
+    # Standardize column names - rename pm25 to pm2_5 if needed
+    if 'pm25' in df.columns and 'pm2_5' not in df.columns:
+        df = df.rename(columns={'pm25': 'pm2_5'})
+        print("Renamed column 'pm25' to 'pm2_5'")
+    
     # Handle missing values
     print(f"Missing values before cleaning:\n{df.isnull().sum()}")
     
