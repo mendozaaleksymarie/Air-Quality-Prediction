@@ -56,7 +56,8 @@ bool rtcReady = false;
 unsigned long warmupStartMs = 0;
 unsigned long lastWifiAttempt = 0;
 unsigned long lastBlynkAttempt = 0;
-const unsigned long WIFI_RETRY_MS = 15000;
+bool wasWifiConnected = false;  // Track WiFi state for auto-reconnect
+const unsigned long WIFI_RETRY_MS = 5000;  // Reduced from 15s for faster reconnection
 const unsigned long BLYNK_RETRY_MS = 5000;
 const unsigned long WARMUP_MS = 120000;
 
@@ -298,18 +299,45 @@ void flushPendingReadings(uint8_t maxItems = 4) {
     }
 }
 
+// WiFi Event Handler - Called when WiFi connection status changes
+void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+    switch(event) {
+        case SYSTEM_EVENT_STA_CONNECTED:
+            Serial.println("[WiFi] Connected to AP");
+            wasWifiConnected = true;
+            lastWifiAttempt = 0;  // Reset timer for immediate reconnection if needed
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:
+            Serial.printf("[WiFi] Disconnected (reason: %d)\n", info.disconnected.reason);
+            wasWifiConnected = false;
+            lastWifiAttempt = 0;  // Reset timer for immediate reconnection attempt
+            break;
+        case SYSTEM_EVENT_STA_GOT_IP:
+            Serial.printf("[WiFi] Got IP: %s\n", WiFi.localIP().toString().c_str());
+            break;
+        default:
+            break;
+    }
+}
+
 void manageConnections() {
     unsigned long now = millis();
-
-    if (WiFi.status() != WL_CONNECTED) {
+    wl_status_t currentWifiStatus = WiFi.status();
+    
+    // Handle WiFi Connection/Reconnection
+    if (currentWifiStatus != WL_CONNECTED) {
+        // WiFi disconnected - attempt reconnection
         if (now - lastWifiAttempt >= WIFI_RETRY_MS) {
             lastWifiAttempt = now;
+            Serial.println("[WiFi] Attempting reconnection...");
             WiFi.mode(WIFI_STA);
+            WiFi.setAutoReconnect(true);  // Enable auto-reconnect
             WiFi.begin(ssid, pass);
         }
         return;
     }
-
+    
+    // WiFi is connected - manage Blynk connection
     if (!blynkConfigured) {
         Blynk.config(BLYNK_AUTH_TOKEN);
         blynkConfigured = true;
@@ -317,6 +345,7 @@ void manageConnections() {
 
     if (!Blynk.connected() && now - lastBlynkAttempt >= BLYNK_RETRY_MS) {
         lastBlynkAttempt = now;
+        Serial.println("[Blynk] Connecting to Blynk...");
         Blynk.connect(0);
     }
 
@@ -526,9 +555,18 @@ void setup() {
     }
 
     lcd.clear(); lcd.setCursor(0, 0); lcd.print("CONNECTING WIFI...");
+    
+    // Register WiFi event handler for auto-reconnect
+    WiFi.onEvent(onWiFiEvent);
+    
+    // Enable auto-reconnect before connecting
+    WiFi.setAutoReconnect(true);
+    WiFi.setAutoConnect(true);
+    
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
     lastWifiAttempt = millis();
+    wasWifiConnected = false;
     unsigned long wifiStart = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 20000) {
         delay(500);
