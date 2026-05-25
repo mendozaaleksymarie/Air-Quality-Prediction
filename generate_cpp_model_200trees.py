@@ -69,12 +69,12 @@ def main():
     with open('models/scaler.pkl', 'rb') as f:
         scaler = pickle.load(f)
     
-    print(f"✓ Model loaded: {model.n_estimators} trees, {model.n_features_in_} features, {model.n_classes_} classes")
-    print(f"✓ Scaler loaded: StandardScaler")
+    print(f"[OK] Model loaded: {model.n_estimators} trees, {model.n_features_in_} features, {model.n_classes_} classes")
+    print(f"[OK] Scaler loaded: StandardScaler")
     
     # Feature names
     feature_names = list(model.feature_names_in_) if hasattr(model, 'feature_names_in_') else [f"feature_{i}" for i in range(model.n_features_in_)]
-    print(f"✓ Features: {model.n_features_in_} total")
+    print(f"[OK] Features: {model.n_features_in_} total")
     
     # Get scaler parameters
     scaler_mean = scaler.mean_
@@ -149,7 +149,7 @@ void normalize_features(float* features) {{
     print(f"Generating {model.n_estimators} decision trees...")
     for tree_idx, tree in enumerate(model.estimators_):
         if (tree_idx + 1) % 50 == 0:
-            print(f"  Tree {tree_idx + 1}/{model.n_estimators}... ✓")
+            print(f"  Tree {tree_idx + 1}/{model.n_estimators}... [OK]")
         cpp_code += generate_tree_cpp(tree, tree_idx, feature_names)
     
     # Generate predict function
@@ -215,7 +215,7 @@ float get_confidence(float* features) {
         f.write(cpp_code)
     
     file_size = os.path.getsize('firmware/model.h')
-    print(f"✓ C++ model generated successfully!")
+    print(f"[OK] C++ model generated successfully!")
     print(f"  File: firmware/model.h")
     print(f"  Size: {file_size:,} bytes ({file_size/1024:.1f} KB)")
     print(f"  Trees: {model.n_estimators}")
