@@ -302,17 +302,17 @@ void flushPendingReadings(uint8_t maxItems = 4) {
 // WiFi Event Handler - Called when WiFi connection status changes
 void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     switch(event) {
-        case SYSTEM_EVENT_STA_CONNECTED:
+        case WIFI_EVENT_STA_CONNECTED:
             Serial.println("[WiFi] Connected to AP");
             wasWifiConnected = true;
             lastWifiAttempt = 0;  // Reset timer for immediate reconnection if needed
             break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            Serial.printf("[WiFi] Disconnected (reason: %d)\n", info.disconnected.reason);
+        case WIFI_EVENT_STA_DISCONNECTED:
+            Serial.printf("[WiFi] Disconnected (reason: %d)\n", info.wifi_sta_disconnected.reason);
             wasWifiConnected = false;
             lastWifiAttempt = 0;  // Reset timer for immediate reconnection attempt
             break;
-        case SYSTEM_EVENT_STA_GOT_IP:
+        case IP_EVENT_STA_GOT_IP:
             Serial.printf("[WiFi] Got IP: %s\n", WiFi.localIP().toString().c_str());
             break;
         default:
@@ -561,7 +561,6 @@ void setup() {
     
     // Enable auto-reconnect before connecting
     WiFi.setAutoReconnect(true);
-    WiFi.setAutoConnect(true);
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
