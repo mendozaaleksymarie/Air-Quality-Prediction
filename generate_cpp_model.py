@@ -69,6 +69,7 @@ def main():
     # Get scaler parameters
     scaler_mean = scaler.mean_
     scaler_scale = scaler.scale_
+    class_labels = [int(c) for c in model.classes_]
     
     print("\nGenerating C++ code...")
     
@@ -118,6 +119,9 @@ const float SCALER_MEAN[] = {
     cpp_code += f"const int NUM_FEATURES = {model.n_features_in_};\n"
     cpp_code += f"const int NUM_CLASSES = {model.n_classes_};\n"
     cpp_code += f"const int NUM_TREES = {model.n_estimators};\n\n"
+    cpp_code += "const int CLASS_LABELS[NUM_CLASSES] = {"
+    cpp_code += ", ".join(str(lbl) for lbl in class_labels)
+    cpp_code += "};\n\n"
     
     # Add feature normalization function
     cpp_code += """// ════════════════════════════════════════════════════════════════════════
@@ -157,7 +161,7 @@ int predict(float features[NUM_FEATURES]) {
     normalize_features(normalized_features);
     
     // Vote from all trees
-    int votes[NUM_CLASSES] = {0, 0, 0};
+    int votes[NUM_CLASSES] = {0};
     
 """
     
@@ -178,7 +182,7 @@ int predict(float features[NUM_FEATURES]) {
         }
     }
     
-    return predicted_class;
+    return CLASS_LABELS[predicted_class];
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -196,7 +200,7 @@ float get_confidence(float features[NUM_FEATURES]) {
     normalize_features(normalized_features);
     
     // Collect votes
-    int votes[NUM_CLASSES] = {0, 0, 0};
+    int votes[NUM_CLASSES] = {0};
     
 """
     

@@ -105,6 +105,8 @@ const int NUM_FEATURES = 35;
 const int NUM_CLASSES = 2;
 const int NUM_TREES = 100;
 
+const int CLASS_LABELS[NUM_CLASSES] = {0, 2};
+
 // ════════════════════════════════════════════════════════════════════════
 // FEATURE PREPROCESSING (StandardScaler normalization)
 // ════════════════════════════════════════════════════════════════════════
@@ -2566,7 +2568,7 @@ int predict(float features[NUM_FEATURES]) {
     normalize_features(normalized_features);
     
     // Vote from all trees
-    int votes[NUM_CLASSES] = {0, 0, 0};
+    int votes[NUM_CLASSES] = {0};
     
     int vote_0 = predict_tree_0(normalized_features);
     votes[vote_0]++;
@@ -2780,7 +2782,7 @@ int predict(float features[NUM_FEATURES]) {
         }
     }
     
-    return predicted_class;
+    return CLASS_LABELS[predicted_class];
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2798,7 +2800,7 @@ float get_confidence(float features[NUM_FEATURES]) {
     normalize_features(normalized_features);
     
     // Collect votes
-    int votes[NUM_CLASSES] = {0, 0, 0};
+    int votes[NUM_CLASSES] = {0};
     
     int vote_0_conf = predict_tree_0(normalized_features);
     votes[vote_0_conf]++;
