@@ -23,71 +23,71 @@ This ensures Field Deployment readings are fully integrated into the training pr
 ## CLASS 0: SAFE ✅
 | Scenario/Condition | Sensor Profile | Wet-Bulb Range | Remark | Reasoning | Worker Action |
 |---|---|---|---|---|---|
-| **Scenario 1: Baseline** | PM2.5: 3-10<br/>PM10: 5-20<br/>Gas: <100<br/>Humidity: 49-65% | Tw ≤ 26°C | **SAFE: NORMAL OPERATIONS** | All sensors in normal range; no hazards detected | Continue normal operations; monitor periodically |
-| **Scenario 3: Misting** | PM2.5: 355-816 (HIGH!)<br/>PM10: High<br/>Gas: 86-117 (normal)<br/>**Humidity: 96-100%** | Tw ≤ 26°C | **SAFE: MISTING DETECTED** | Pattern matching: Extreme PM + Extreme humidity + Normal gas = water droplets, NOT pollution | Water spray is not a health hazard; system working correctly |
-| **Scenario 7: High Humidity** | PM2.5: Normal<br/>PM10: Normal<br/>Gas: Normal<br/>Humidity: 60-95% | Tw 27-30°C OK | **SAFE: COOL HUMID AIR** | Elevated humidity alone is not hazardous (aircon condensation, tropical climate) | Normal operations; elevated humidity provides cooling relief |
+| **Scenario 1: Baseline** | PM2.5: 3-10<br/>PM10: 5-20<br/>Gas: <40<br/>Humidity: 49-65% | Tw ≤ 26°C | **SAFE: CONTINUE OPERATIONS** | All sensors in normal range; no hazards detected | Continue normal operations; monitor periodically |
+| **Scenario 3: Misting** | PM2.5: 355-816 (HIGH!)<br/>PM10: High<br/>Gas: <40 (normal)<br/>**Humidity: 96-100%** | Tw ≤ 26°C | **SAFE: CONTINUE WORK, NO EVACUATION** | Pattern matching: Extreme PM + Extreme humidity + Normal gas = water droplets, NOT pollution | Extreme PM with extreme humidity indicates mist; water spray is not a health hazard |
+| **Scenario 7: High Humidity** | PM2.5: Normal<br/>PM10: Normal<br/>Gas: Normal<br/>Humidity: 60-95% | Tw 27-30°C OK | **SAFE: CONTINUE TASKS WITH HYDRATION** | Elevated humidity alone is not hazardous (aircon condensation, tropical climate) | Normal operations; elevated humidity context recognized; increase hydration |
 | **Field Deployment - Dynamic** | All sensors activate sensor escalation/combination logic<br/>Misting detection applied<br/>Wet-bulb escalation applied | Tw ≤ 26°C | **DYNAMIC: From sensor pattern detection** | Field readings classified via sensor escalation logic (NOT generic); remarks based on actual sensor combinations or training patterns detected | Remarks trace to specific causes: misting, dust storm, smoke, CO, heat stress, etc.
 
 | **Decision Rule** | **Trigger** | **Remark** |
 |---|---|---|
-| Misting Override (Highest Priority) | Humidity ≥ 95% AND Gas < 100 ppm | **SAFE: MISTING DETECTED** |
-| All Sensors Normal | PM2.5 < 51 AND PM10 < 151 AND Gas < 131 AND CO < 10 | **SAFE: ALL SENSORS NORMAL** |
+| Misting Override (Highest Priority) | Humidity ≥ 95% AND Gas ≤ 40 ppm AND Tw ≤ 35°C | **SAFE: CONTINUE WORK, NO EVACUATION** |
+| All Sensors Normal | PM2.5 < 51 AND PM10 < 151 AND Gas < 40 AND CO < 10 | **SAFE: CONTINUE OPERATIONS** |
 
 ---
 
 ## CLASS 1: CAUTION ⚠️
 | Scenario/Condition | Sensor Profile | Wet-Bulb Range | Remark | Reasoning | Worker Action |
 |---|---|---|---|---|---|
-| **Single PM2.5 Elevated** | PM2.5: 51-100 μg/m³<br/>Other sensors normal | 27-30°C | **CAUTION: ELEVATED DUST** | Dust level rising but not critical; trending toward hazard | Monitor air quality; consider N95 if heavy work; reduce exertion |
-| **Single PM10 Elevated** | PM10: 151-230 μg/m³<br/>Other sensors normal | 27-30°C | **CAUTION: COARSE PARTICLES** | Coarse particles detected; ventilation recommended | Increase ventilation; monitor work pace |
-| **Single Gas Elevated** | Gas (MQ-2): 131-175 ppm<br/>Other sensors normal | 27-30°C | **CAUTION: COMBUSTIBLES DETECTED** | Potential smoke/VOC at low levels; check for sources | Check for machinery exhaust/fire; increase ventilation |
-| **Single CO Elevated** | CO (MQ-7): 10-30 ppm<br/>Other sensors normal | 27-30°C | **CAUTION: ELEVATED CO** | Carbon monoxide present; check for combustion sources | Verify fire status; check generator/machinery exhaust |
-| **PM10 + Gas (Combination)** | PM10: 151-230<br/>Gas: 131-175<br/>PM2.5: < 51 | 27-30°C | **CAUTION: COMBINED HAZARD RISKING** | Multiple sensor categories triggered; risk escalating | Increase monitoring; reduce work intensity; prepare PPE |
-| **PM10 + CO (Combination)** | PM10: 151-230<br/>CO: 10-30<br/>Others moderate | 27-30°C | **CAUTION: CHECK FOR FIRE** | Coarse particles + carbon monoxide suggests developing fire | Investigate fire potential; increase ventilation; be ready to evacuate |
-| **3+ Sensors in Caution Range** | Any 3+ sensors at caution level<br/>But none hazardous | Tw > 30°C (heat stress escal.) | **CAUTION: MULTI-SENSOR ALERT** | Multiple systems showing stress; coordination effect dangerous | Initiate protective measures; reduce exertion; monitor closely |
-| **Heat Stress Escalation** | Sensors: Safe or low caution<br/>**Wet-Bulb: 27-30°C** | **27-30°C** | **CAUTION: HEAT STRESS RISING** | Heat stress from temperature + humidity climbing; body cooling stressed | Increase hydration frequency; reduce work intensity; take breaks |
+| **Single PM2.5 Elevated** | PM2.5: 51-100 μg/m³<br/>Other sensors normal | 27-30°C | **CAUTION: REDUCE DUST EXPOSURE NOW** | Dust level rising but not critical; trending toward hazard | Monitor air quality; reduce dust exposure; increase ventilation |
+| **Single PM10 Elevated** | PM10: 151-230 μg/m³<br/>Other sensors normal | 27-30°C | **CAUTION: IMPROVE VENTILATION NOW** | Coarse particles detected; ventilation recommended | Increase ventilation; monitor work pace; activate dust suppression |
+| **Single Gas Elevated** | Gas (MQ-2): 40-62 ppm<br/>Other sensors normal | 27-30°C | **CAUTION: CHECK COMBUSTION SOURCES NOW** | Potential smoke/VOC at low levels; check for sources | Check for machinery exhaust/fire; increase ventilation |
+| **Single CO Elevated** | CO (MQ-7): 10-30 ppm<br/>Other sensors normal | 27-30°C | **CAUTION: MOVE TO CLEANER AIR ZONE** | Carbon monoxide present; check for combustion sources | Verify fire status; check generator/machinery exhaust |
+| **PM10 + Gas (Combination)** | PM10: 151-230<br/>Gas: 40-62<br/>PM2.5: < 51 | 27-30°C | **CAUTION: PREPARE RESPIRATORY PROTECTION** | Multiple sensor categories triggered; risk escalating | Increase monitoring; reduce work intensity; prepare PPE |
+| **PM10 + CO (Combination)** | PM10: 151-230<br/>CO: 10-30<br/>Others moderate | 27-30°C | **CAUTION: START FIRE-SOURCE CHECK** | Coarse particles + carbon monoxide suggests developing fire | Investigate fire potential; increase ventilation; be ready to evacuate |
+| **3+ Sensors in Caution Range** | Any 3+ sensors at caution level<br/>But none hazardous | Tw > 30°C (heat stress escal.) | **CAUTION: ACTIVATE PROTECTIVE PROTOCOL** | Multiple systems showing stress; coordination effect dangerous | Initiate protective measures; reduce exertion; monitor closely |
+| **Heat Stress Escalation** | Sensors: Safe or low caution<br/>**Wet-Bulb: 27-30°C** | **27-30°C** | **CAUTION: SLOW WORK AND HYDRATE** | Heat stress from temperature + humidity climbing; body cooling stressed | Increase hydration frequency; reduce work intensity; take breaks |
 
 | **Decision Rule** | **Trigger** | **Remark** |
 |---|---|---|
-| Single Caution Sensor | One sensor 51-100 (PM2.5), 151-230 (PM10), 131-175 (Gas), 10-30 (CO) | **CAUTION: [SENSOR] ELEVATED** |
+| Single Caution Sensor | One sensor 51-100 (PM2.5), 151-230 (PM10), 40-62 (Gas), 10-30 (CO) | **CAUTION: [SENSOR] ELEVATED** |
 | Dangerous Combination (Non-Hazardous) | PM10+Gas OR PM10+CO at caution levels | **CAUTION: COMBINED HAZARD RISKING** |
-| Three+ Caution Sensors | 3+ sensors in caution ranges | **CAUTION: MULTI-SENSOR ALERT** |
-| Heat Stress Escalation | Tw 27-30°C + any concern | **CAUTION: HEAT STRESS RISING** |
+| Three+ Caution Sensors | 3+ sensors in caution ranges | **CAUTION: ACTIVATE PROTECTIVE PROTOCOL** |
+| Heat Stress Escalation | Tw 27-30°C + any concern | **CAUTION: SLOW WORK AND HYDRATE** |
 
 ---
 
 ## CLASS 2: HAZARDOUS 🚨
 | Scenario/Condition | Sensor Profile | Wet-Bulb Range | Remark | Reasoning | Worker Action |
 |---|---|---|---|---|---|
-| **ANY SINGLE HAZARDOUS SENSOR** | **PM2.5 > 100** | Any | **HAZARDOUS: EXTREME DUST - USE RESPIRATOR, RELOCATE** | Particle level critical; immediate respiratory hazard | **IMMEDIATE**: Stop dust work, use HEPA/N95+ mask, move to ventilated area |
-| | **PM10 > 230** | Any | **HAZARDOUS: PARTICLES CRITICAL - SUPPRESS DUST SOURCE** | Coarse particle emergency; visibility/breathing compromised | **IMMEDIATE**: Activate dust suppression (water spray), increase ventilation |
-| | **Gas ≥ 176 ppm** | Any | **HAZARDOUS: COMBUSTIBLES EXTREME - IDENTIFY SOURCE NOW** | Combustible gas at critical level; fire/explosion risk | **IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES |
-| | **CO > 30 ppm** | Any | **HAZARDOUS: CO CRITICAL - CHECK MACHINERY/ENGINES** | Carbon monoxide critical; immediate poisoning risk | **IMMEDIATE**: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind |
-| **Scenario 2: Pure Dust** | PM2.5: 50-200<br/>PM10: 100-300<br/>Humidity: 36-51% (LOW)<br/>Gas: normal | Tw ≤ 26°C | **HAZARDOUS: WEAR FACE MASK** | High particles + low humidity = genuine dust/excavation hazard | Wear N95/FFP2 mask immediately; reduce work pace |
-| **Scenario 4: Fire** | PM2.5: Extreme<br/>Gas: High<br/>Temp: High<br/>**All spiking together** | Any | **HAZARDOUS: EVACUATE AREA NOW** | Multi-sensor fire signature detected; critical danger | **IMMEDIATE EVACUATION - FIRE DETECTED** |
+| **ANY SINGLE HAZARDOUS SENSOR** | **PM2.5 > 100** | Any | **HAZARDOUS: STOP DUST WORK NOW** | Particle level critical; immediate respiratory hazard | **IMMEDIATE**: Stop dust work, use HEPA/N95+ mask, move to ventilated area |
+| | **PM10 > 230** | Any | **HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW** | Coarse particle emergency; visibility/breathing compromised | **IMMEDIATE**: Activate dust suppression (water spray), increase ventilation |
+| | **Gas ≥ 63 ppm** | Any | **HAZARDOUS: STOP IGNITION ACTIVITIES NOW** | Combustible gas at critical level; fire/explosion risk | **IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES |
+| | **CO > 30 ppm** | Any | **HAZARDOUS: MOVE UPWIND IMMEDIATELY** | Carbon monoxide critical; immediate poisoning risk | **IMMEDIATE**: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind |
+| **Scenario 2: Pure Dust** | PM2.5: 50-200<br/>PM10: 100-300<br/>Humidity: 36-51% (LOW)<br/>Gas: normal | Tw ≤ 26°C | **HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY** | High particles + low humidity = genuine dust/excavation hazard | Wear N95/FFP2 mask immediately; reduce work pace |
+| **Scenario 4: Fire** | PM2.5: Extreme<br/>Gas: High<br/>Temp: High<br/>**All spiking together** | Any | **HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL** | Multi-sensor fire signature detected; critical danger | **IMMEDIATE EVACUATION - FIRE DETECTED** |
 | **Scenario 5: Combustion** | PM2.5: Gradual rise<br/>Gas: Gradual rise<br/>Over 30-60 min pattern<br/>Temp: Slow increase | Tw ≤ 30°C | **HAZARDOUS: CHECK FOR FIRE** | Sustained combustion pattern; developing fire risk | Verify fire/smoke; increase ventilation; prepare evacuation |
-| **Scenario 6: VOC/Chemical** | PM2.5: Moderate (22-339)<br/>Gas: HIGH (139-348)<br/>CO: Elevated<br/>PM10: Moderate | Tw ≤ 30°C | **HAZARDOUS: IMPROVE VENTILATION** | High gas + CO regardless of visible PM = chemical/VOC hazard | Improve ventilation immediately; wear respirator; check chemical sources |
-| **PM2.5 + PM10 (Dust Storm)** | PM2.5: Caution+ (>51)<br/>PM10: Caution+ (>151)<br/>Humidity: < 95% (not misting) | Tw ≤ 30°C | **HAZARDOUS: DUST STORM** | Both particle sizes elevated simultaneously = genuine dust storm | Wear N95/FFP2; minimize outdoor exposure; shelter if possible |
-| **PM2.5 + Gas (Smoke Detected)** | PM2.5: Elevated (>51)<br/>Gas: Elevated (>131)<br/>Temp: Normal/high | Tw ≤ 30°C | **HAZARDOUS: SMOKE DETECTED** | Particles + combustible gases = active combustion/smoke | Investigate fire source; increase ventilation; be ready to evacuate |
-| **PM2.5 + CO (Fire Hazard)** | PM2.5: Elevated (>51)<br/>CO: Elevated (>10)<br/>Temp: Rising | Tw ≤ 30°C | **HAZARDOUS: FIRE HAZARD** | Particles + CO signature = fire risk; products of incomplete combustion | Verify fire status; prepare evacuation routes; call emergency if needed |
-| **Gas + CO (Chemical Vapors)** | Gas: Elevated (>131)<br/>CO: Elevated (>10)<br/>PM sensors: Any level | Tw ≤ 30°C | **HAZARDOUS: CHEMICAL VAPORS** | High combustible + CO = dangerous vapor/gas accumulation | **MANDATORY EVACUATION** - hazmat situation; call emergency services |
-| **3+ Sensors Triggered** | Any combination of 3+ sensors<br/>At caution or higher levels | Any | **HAZARDOUS: MULTI-SENSOR ALERT** | Multiple hazard dimensions present; coordinated danger | **MANDATORY PROTECTIVE ACTION** - Mask/Ventilate/Evacuate per hierarchy |
-| **Extreme Heat Stress** | All sensors normal or safe<br/>**Wet-Bulb: > 30°C** | **> 30°C** | **HAZARDOUS: HEAT STRESS CRITICAL** | Body cannot maintain safe core temperature; stop non-essential work | **MANDATORY BREAK** - cease non-essential work; hydrate; cool down |
-| **Critical Heat Stress** | Any condition present<br/>**Wet-Bulb: > 35°C** | **> 35°C** | **HAZARDOUS: EXTREME HEAT - EVACUATE** | Survivability limit reached; immediate life threat | **IMMEDIATE EVACUATION** - move to cool environment; emergency medical standby |
+| **Scenario 6: VOC/Chemical** | PM2.5: Moderate (22-339)<br/>Gas: HIGH (≥63)<br/>CO: Elevated<br/>PM10: Moderate | Tw ≤ 30°C | **HAZARDOUS: EVACUATE AFFECTED ZONE NOW** | High gas + CO regardless of visible PM = chemical/VOC hazard | Improve ventilation immediately; wear respirator; check chemical sources |
+| **PM2.5 + PM10 (Dust Storm)** | PM2.5: Caution+ (>51)<br/>PM10: Caution+ (>151)<br/>Humidity: < 95% (not misting) | Tw ≤ 30°C | **HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY** | Both particle sizes elevated simultaneously = genuine dust storm | Wear N95/FFP2; minimize outdoor exposure; shelter if possible |
+| **PM2.5 + Gas (Smoke Detected)** | PM2.5: Elevated (>51)<br/>Gas: Elevated (≥63)<br/>Temp: Normal/high | Tw ≤ 30°C | **HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION** | Particles + combustible gases = active combustion/smoke | Investigate fire source; increase ventilation; be ready to evacuate |
+| **PM2.5 + CO (Fire Hazard)** | PM2.5: Elevated (>51)<br/>CO: Elevated (>10)<br/>Temp: Rising | Tw ≤ 30°C | **HAZARDOUS: TREAT AS FIRE RISK NOW** | Particles + CO signature = fire risk; products of incomplete combustion | Verify fire status; prepare evacuation routes; call emergency if needed |
+| **Gas + CO (Chemical Vapors)** | Gas: Elevated (≥63)<br/>CO: Elevated (>10)<br/>PM sensors: Any level | Tw ≤ 30°C | **HAZARDOUS: EVACUATE AFFECTED ZONE NOW** | High combustible + CO = dangerous vapor/gas accumulation | **MANDATORY EVACUATION** - hazmat situation; call emergency services |
+| **3+ Sensors Triggered** | Any combination of 3+ sensors<br/>At caution or higher levels | Any | **HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL** | Multiple hazard dimensions present; coordinated danger | **MANDATORY PROTECTIVE ACTION** - Mask/Ventilate/Evacuate per hierarchy |
+| **Extreme Heat Stress** | All sensors normal or safe<br/>**Wet-Bulb: > 30°C** | **> 30°C** | **HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK** | Body cannot maintain safe core temperature; stop non-essential work | **MANDATORY BREAK** - cease non-essential work; hydrate; cool down |
+| **Critical Heat Stress** | Any condition present<br/>**Wet-Bulb: > 35°C** | **> 35°C** | **HAZARDOUS: EVACUATE TO COOLING AREA NOW** | Survivability limit reached; immediate life threat | **IMMEDIATE EVACUATION** - move to cool environment; emergency medical standby |
 
 | **Decision Rule** | **Trigger** | **Remark** | **Priority** |
 |---|---|---|---|
-| **CRITICAL: Single Hazardous PM2.5** | PM2.5 > 100 | **HAZARDOUS: EXTREME DUST - USE RESPIRATOR, RELOCATE** | 🔴 HIGHEST |
-| **CRITICAL: Single Hazardous PM10** | PM10 > 230 | **HAZARDOUS: PARTICLES CRITICAL - SUPPRESS DUST SOURCE** | 🔴 HIGHEST |
-| **CRITICAL: Single Hazardous Gas** | Gas ≥ 176 | **HAZARDOUS: COMBUSTIBLES EXTREME - IDENTIFY SOURCE NOW** | 🔴 HIGHEST |
-| **CRITICAL: Single Hazardous CO** | CO > 30 | **HAZARDOUS: CO CRITICAL - CHECK MACHINERY/ENGINES** | 🔴 HIGHEST |
-| Dangerous Combination (Smoke) | PM2.5 + Gas both elevated | **HAZARDOUS: SMOKE DETECTED** | 🔴 CRITICAL |
-| Dangerous Combination (Fire) | PM2.5 + CO both elevated | **HAZARDOUS: FIRE HAZARD** | 🔴 CRITICAL |
-| Dangerous Combination (Vapors) | Gas + CO both elevated | **HAZARDOUS: CHEMICAL VAPORS** | 🔴 CRITICAL |
-| Multi-Particle (Dust Storm) | PM2.5 + PM10 both elevated | **HAZARDOUS: DUST STORM** | 🟠 HIGH |
-| Multi-Sensor Alert | 3+ sensors at caution/hazardous | **HAZARDOUS: MULTI-SENSOR ALERT** | 🟠 HIGH |
-| Extreme Heat Stress | Tw > 30°C | **HAZARDOUS: HEAT STRESS CRITICAL** | 🟠 HIGH |
-| Critical Heat Stress | Tw > 35°C | **HAZARDOUS: EXTREME HEAT - EVACUATE** | 🔴 CRITICAL |
+| **CRITICAL: Single Hazardous PM2.5** | PM2.5 > 100 | **HAZARDOUS: STOP DUST WORK NOW** | 🔴 HIGHEST |
+| **CRITICAL: Single Hazardous PM10** | PM10 > 230 | **HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW** | 🔴 HIGHEST |
+| **CRITICAL: Single Hazardous Gas** | Gas ≥ 63 | **HAZARDOUS: STOP IGNITION ACTIVITIES NOW** | 🔴 HIGHEST |
+| **CRITICAL: Single Hazardous CO** | CO > 30 | **HAZARDOUS: MOVE UPWIND IMMEDIATELY** | 🔴 HIGHEST |
+| Dangerous Combination (Smoke) | PM2.5 + Gas both elevated | **HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION** | 🔴 CRITICAL |
+| Dangerous Combination (Fire) | PM2.5 + CO both elevated | **HAZARDOUS: TREAT AS FIRE RISK NOW** | 🔴 CRITICAL |
+| Dangerous Combination (Vapors) | Gas + CO both elevated | **HAZARDOUS: EVACUATE AFFECTED ZONE NOW** | 🔴 CRITICAL |
+| Multi-Particle (Dust Storm) | PM2.5 + PM10 both elevated | **HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY** | 🟠 HIGH |
+| Multi-Sensor Alert | 3+ sensors at caution/hazardous | **HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL** | 🟠 HIGH |
+| Extreme Heat Stress | Tw > 30°C | **HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK** | 🟠 HIGH |
+| Critical Heat Stress | Tw > 35°C | **HAZARDOUS: EVACUATE TO COOLING AREA NOW** | 🔴 CRITICAL |
 
 ---
 
@@ -145,120 +145,138 @@ IF Tw > 35°C:
 
 ---
 
-# 🔄 COMPLETE DECISION FLOW (Priority Order)
+# 🔄 COMPLETE DECISION FLOW (Priority Order - Matches Firmware Implementation)
 
-## Step 1: MISTING CHECK (Highest Priority Override)
+## Step 1: COMPUTE WET-BULB TEMPERATURE (Stull 2011 Formula)
 ```
-IF Humidity ≥ 95% AND Gas < 100 ppm:
-   → CLASS 0 (SAFE)
-   → Remark: "SAFE: MISTING DETECTED"
-   → STOP - Skip all other checks
+Tw = T * atan(0.151977 * sqrt(RH + 8.313659)) + atan(T + RH) - atan(RH - 1.676331) 
+     + 0.00391838 * RH^1.5 * atan(0.023101 * RH) - 4.686035
 ```
 
-## Step 2: CRITICAL HAZARDOUS SENSOR CHECK (Life Safety)
+## Step 2: EXTREME HEAT CHECK (Highest Priority Override)
 ```
-IF ANY sensor exceeds hazardous threshold:
-   IF PM2.5 > 100:
-      → CLASS 2 (HAZARDOUS)
-      → Remark: "HAZARDOUS: EXTREME DUST - USE RESPIRATOR, RELOCATE"
-      → Action: Stop dust work, use HEPA/N95+ mask, move to ventilated area
-   
-   IF PM10 > 230:
-      → CLASS 2 (HAZARDOUS)
-      → Remark: "HAZARDOUS: PARTICLES CRITICAL - SUPPRESS DUST SOURCE"
-      → Action: Activate dust suppression (water spray), increase ventilation
-   
-   IF Gas ≥ 176 ppm:
-      → CLASS 2 (HAZARDOUS)
-      → Remark: "HAZARDOUS: COMBUSTIBLES EXTREME - IDENTIFY SOURCE NOW"
-      → Action: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES
-   
-   IF CO > 30 ppm:
-      → CLASS 2 (HAZARDOUS)
-      → Remark: "HAZARDOUS: CO CRITICAL - CHECK MACHINERY/ENGINES"
-      → Action: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind
-   
-   → STOP after first hazardous sensor found
-```
-
-## Step 3: DANGEROUS MULTI-SENSOR COMBINATIONS
-```
-IF (PM2.5 ≥ 51 AND PM10 ≥ 151) AND NOT misting:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: DUST STORM"
-
-IF PM2.5 ≥ 51 AND Gas ≥ 131:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: SMOKE DETECTED"
-
-IF PM2.5 ≥ 51 AND CO ≥ 10:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: FIRE HAZARD"
-
-IF Gas ≥ 131 AND CO ≥ 10:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: CHEMICAL VAPORS"
-
-IF 3+ sensors in caution/hazardous range:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: MULTI-SENSOR ALERT"
-```
-
-## Step 4: HEAT STRESS EVALUATION
-```
-Compute Wet-Bulb Temperature (Stull 2011)
-
 IF Tw > 35°C:
-   → CLASS 2 (HAZARDOUS)
-   → Remark: "HAZARDOUS: EXTREME HEAT - EVACUATE"
-   → OVERRIDE all sensor readings
-
-IF Tw > 30°C:
-   IF Current Class 1 (Caution):
-      → ESCALATE to CLASS 2 (HAZARDOUS)
-      → Remark: [Previous + "HEAT STRESS CRITICAL"]
-   IF Current Class 0 (Safe):
-      → ESCALATE to CLASS 1 (CAUTION)
-      → Remark: "CAUTION: HEAT STRESS RISING"
-
-IF Tw 27-30°C:
-   IF Current Class 0 (Safe):
-      → KEEP CLASS 0 but add heat warning
-      → Remark: [Sensor safe + "HEAT STRESS RISING"]
+   → FORCE CLASS 2 (HAZARDOUS)
+   → Remark: "HAZARDOUS: EVACUATE TO COOLING AREA NOW"
+   → STOP - Override all sensor logic
 ```
 
-## Step 5: SINGLE SENSOR CAUTION RANGE
+## Step 3: CRITICAL HAZARDOUS SENSOR CHECK + HEAT STRESS ESCALATION
 ```
-IF PM2.5 in 51-100 but no dangerous combos:
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: ELEVATED DUST"
+Define Hazardous Thresholds:
+   PM2.5_Haz = (pm25 > 100)
+   PM10_Haz = (pm10 > 230)
+   Gas_Haz = (gas >= 63)
+   CO_Haz = (co > 30)
 
-IF PM10 in 151-230 but no dangerous combos:
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: COARSE PARTICLES"
+Define Caution Thresholds:
+   PM2.5_Cau = (pm25 >= 51)
+   PM10_Cau = (pm10 >= 151)
+   Gas_Cau = (gas >= 40)
+   CO_Cau = (co >= 10 AND co <= 30)
 
-IF Gas in 131-175 but no dangerous combos:
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: COMBUSTIBLES DETECTED"
+Count_Hazard = PM2.5_Haz + PM10_Haz + Gas_Haz + CO_Haz
+Count_Caution = PM2.5_Cau + PM10_Cau + Gas_Cau + CO_Cau
 
-IF CO in 10-30 but no dangerous combos:
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: ELEVATED CO"
-
-IF PM10+Gas combo (both in 151-230, 131-175 respectively):
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: COMBINED HAZARD RISKING"
-
-IF PM10+CO combo (both in 151-230, 10-30 respectively):
-   → CLASS 1 (CAUTION)
-   → Remark: "CAUTION: CHECK FOR FIRE"
+IF (Count_Hazard >= 1) OR (Tw > 30°C AND cls from model indicates hazard):
+   → FORCE CLASS 2 (HAZARDOUS)
+   
+ELSE IF (Count_Caution >= 1) AND (cls from model == 0):
+   → ESCALATE to CLASS 1 (CAUTION)
 ```
 
-## Step 6: DEFAULT SAFE
+## Step 4: MISTING DETECTION (Override - Prevents False Alarms)
 ```
-IF all sensors normal AND Tw ≤ 26°C:
-   → CLASS 0 (SAFE)
-   → Remark: "SAFE: ALL SENSORS NORMAL"
+IF Humidity >= 95% AND Gas <= 40 ppm AND Tw <= 35°C:
+   → FORCE CLASS 0 (SAFE)
+   → Remark: "SAFE: CONTINUE WORK, NO EVACUATION"
+   → STOP - Misting is NOT a health hazard
+```
+
+## Step 5: GENERATE REMARK BASED ON CLASS
+
+### CLASS 2 (HAZARDOUS) - Generated Remarks:
+```
+IF Tw > 35°C:
+   status = "HAZARDOUS: EVACUATE TO COOLING AREA NOW"
+   
+ELSE IF Tw > 30°C:
+   status = "HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK"
+   
+ELSE IF Count_Hazard >= 3:
+   status = "HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL"
+   
+ELSE IF Gas_Haz AND CO_Haz:
+   status = "HAZARDOUS: EVACUATE AFFECTED ZONE NOW"
+   
+ELSE IF PM2.5_Haz AND CO_Haz:
+   status = "HAZARDOUS: TREAT AS FIRE RISK NOW"
+   
+ELSE IF PM2.5_Haz AND Gas_Haz:
+   status = "HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION"
+   
+ELSE IF PM2.5_Haz AND PM10_Haz:
+   status = "HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY"
+   
+ELSE IF CO_Haz:
+   status = "HAZARDOUS: MOVE UPWIND IMMEDIATELY"
+   
+ELSE IF Gas_Haz:
+   status = "HAZARDOUS: STOP IGNITION ACTIVITIES NOW"
+   
+ELSE IF PM10_Haz:
+   status = "HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW"
+   
+ELSE IF PM2.5_Haz:
+   status = "HAZARDOUS: STOP DUST WORK NOW"
+   
+ELSE:
+   status = "HAZARDOUS: PAUSE OPERATIONS UNTIL STABLE"
+```
+
+### CLASS 1 (CAUTION) - Generated Remarks:
+```
+IF Tw >= 27.0 AND Tw <= 30.0 AND Count_Caution == 0:
+   status = "CAUTION: SLOW WORK AND HYDRATE"
+   
+ELSE IF Count_Caution >= 3:
+   status = "CAUTION: ACTIVATE PROTECTIVE PROTOCOL"
+   
+ELSE IF PM10_Cau AND CO_Cau:
+   status = "CAUTION: START FIRE-SOURCE CHECK"
+   
+ELSE IF PM10_Cau AND Gas_Cau:
+   status = "CAUTION: PREPARE RESPIRATORY PROTECTION"
+   
+ELSE IF CO_Cau:
+   status = "CAUTION: MOVE TO CLEANER AIR ZONE"
+   
+ELSE IF Gas_Cau:
+   status = "CAUTION: CHECK COMBUSTION SOURCES NOW"
+   
+ELSE IF PM10_Cau:
+   status = "CAUTION: IMPROVE VENTILATION NOW"
+   
+ELSE IF PM2.5_Cau:
+   status = "CAUTION: REDUCE DUST EXPOSURE NOW"
+   
+ELSE:
+   status = "CAUTION: APPLY PPE AND REASSESS"
+```
+
+### CLASS 0 (SAFE) - Generated Remarks:
+```
+IF Humidity >= 95.0 AND Gas <= 40:
+   status = "SAFE: CONTINUE WORK, NO EVACUATION"
+   note = "Extreme PM with extreme humidity indicates mist"
+   
+ELSE IF Humidity > 70.0:
+   status = "SAFE: CONTINUE TASKS WITH HYDRATION"
+   note = "Elevated humidity alone is not a pollutant hazard"
+   
+ELSE:
+   status = "SAFE: CONTINUE OPERATIONS"
+   note = "All sensors normal"
 ```
 
 ---
@@ -299,7 +317,7 @@ IF all sensors normal AND Tw ≤ 26°C:
 |--------|---|---|---|---|---|
 | **PM2.5** | 51-100 | >100 | μg/m³ | DENR/RA 8749 IRR | PMS5003 |
 | **PM10** | 151-230 | >230 | μg/m³ | DENR/RA 8749 IRR | PMS5003 |
-| **Gas (MQ-2)** | 131-175 | ≥176 | ppm | NIOSH REL/OSHA | MQ-2 Sensor |
+| **Gas (MQ-2)** | 40-62 | ≥63 | ppm | Construction Site Safety | MQ-2 Sensor |
 | **CO (MQ-7)** | 10-30 | >30 | ppm | OSHA PEL (8-hr) | MQ-7 Sensor |
 | **Wet-Bulb Temp** | 27-30 | >30 | °C | Heat Stress | DHT-22 computed |
 
@@ -318,6 +336,8 @@ IF all sensors normal AND Tw ≤ 26°C:
 
 ---
 
-**GENERATED:** April 7, 2026  
+**GENERATED:** May 25, 2026  
+**UPDATED:** Synchronized with firmware implementation (esp32_embedded_ml.ino v11.5)  
 **BASED ON:** MILES Random Forest Classifier with 8-scenario training protocol  
-**INCLUDES:** All 20,568 training rows, 3-class output, dynamic remarks system, wet-bulb escalation logic
+**FIRMWARE VERSION:** Calibration v3.0 (2026-05-25)  
+**INCLUDES:** All 20,568 training rows, 3-class output, dynamic remarks system (23+ combinations), wet-bulb escalation logic, firmware-validated decision rules
