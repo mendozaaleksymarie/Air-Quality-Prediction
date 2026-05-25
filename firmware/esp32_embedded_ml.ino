@@ -653,7 +653,7 @@ void loop() {
 
         lcd.setCursor(0, 0); lcd.print("P2.5:"); lcd.print((int)data.pm2_5); lcd.print("  ");
         lcd.setCursor(11, 0); lcd.print("P10:"); lcd.print((int)data.pm10); lcd.print("  ");
-        lcd.setCursor(0, 1); lcd.print("GAS:"); lcd.print((int)data.gas); lcd.print("  ");
+        lcd.setCursor(0, 1); lcd.print("SMK:"); lcd.print((int)data.gas); lcd.print("  ");
         lcd.setCursor(11, 1); lcd.print("CO :"); lcd.print((int)data.co); lcd.print("  ");
         lcd.setCursor(0, 2); lcd.print("T:"); lcd.print(data.temp, 1); lcd.print("C ");
         lcd.setCursor(11, 2); lcd.print("H:"); lcd.print(data.hum, 0); lcd.print("% ");
