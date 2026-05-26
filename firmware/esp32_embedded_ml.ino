@@ -72,7 +72,7 @@ const unsigned long WARMUP_MS = 120000;
 #define MQ7_VIN 3.3                   // Reference voltage
 #define MQ7_ADC_MAX 4095.0            // 12-bit ADC resolution
 #define MQ7_RL 10000.0                // Load resistance (ohms)
-#define MQ7_RO 1822.0                 // Clean air resistance (ohms)
+#define MQ7_RO 1530.9                 // Clean air resistance (ohms)
 #define MQ7_COEFF 99.042              // Calibration coefficient
 #define MQ7_EXPONENT -1.518           // Calibration exponent
 
