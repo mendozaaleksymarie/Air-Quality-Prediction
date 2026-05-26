@@ -650,12 +650,12 @@ void loop() {
         float wet_bulb = data.temp * atan(0.151977 * pow(data.hum + 8.313659, 0.5)) + atan(data.temp + data.hum) - atan(data.hum - 1.676331) + 0.00391838 * pow(data.hum, 1.5) * atan(0.023101 * data.hum) - 4.686035;
         addToHistory(data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, wet_bulb);
         
-        // Build full 35-feature array with engineered features
-        float input[35];
+        // Build full 36-feature array with engineered features
+        float input[36];
         buildFullFeatureArray(input, data.pm2_5, data.pm10, data.temp, data.hum, data.gas, data.co, wet_bulb);
         
         // Predict using 200-tree model
-        lastClass = predict(input);
+        lastClass = predict(input, 36);
         processDecisions(lastClass, data.pm2_5, data.pm10, data.co, data.gas, data.hum, data.temp);
 
         PendingReading reading;
