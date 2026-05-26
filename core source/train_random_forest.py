@@ -90,6 +90,41 @@ MODEL_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'rando
 SCALER_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'scaler.pkl')
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# MQ7 CO SENSOR CALIBRATION (Updated May 27, 2026)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Conversion parameters for MQ7 ADC to PPM
+VIN = 3.3
+ADC_MAX = 4095
+RL = 10000
+RO = 1822  # Clean air resistance in ohms (UPDATED from 2120)
+COEFF = 99.042
+EXPONENT = -1.518
+
+def convert_adc_to_ppm_co(adc_value):
+    """Convert MQ7_ADC to PPM using RO = 1822"""
+    try:
+        if pd.isna(adc_value) or adc_value < 0:
+            return np.nan
+        
+        # Step 1: Vout = MQ7_ADC × (3.3 / 4095)
+        vout = adc_value * (VIN / ADC_MAX)
+        
+        # Step 2: Rs = 10,000 × (3.3 - Vout) / Vout
+        if vout == 0 or vout >= VIN:
+            return np.nan
+        rs = RL * (VIN - vout) / vout
+        
+        # Step 3: ratio = Rs / 1822
+        ratio = rs / RO
+        
+        # Step 4: MQ7_PPM = 99.042 × ratio^(-1.518)
+        ppm = COEFF * pow(ratio, EXPONENT)
+        
+        return max(ppm, 0.0)  # Ensure non-negative
+    except:
+        return np.nan
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TRAINING SIMULATION & FIELD DEPLOYMENT REMARKS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -721,6 +756,33 @@ def load_data():
         print(f"\nSaving combined dataset to {DATASET_PATH}...")
         df.to_csv(DATASET_PATH, index=False)
         print("Combined dataset saved.")
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # RECALIBRATE CO VALUES WITH RO = 1822 (Updated May 27, 2026)
+    # ─────────────────────────────────────────────────────────────────────────
+    print("\n🔄 Recalibrating CO values with RO = 1822...")
+    if 'co' in df.columns:
+        df['co'] = df['co'].apply(convert_adc_to_ppm_co)
+        
+        # Recalculate CO-dependent derived features
+        print("📊 Recalculating CO-dependent features...")
+        
+        # Sort by timestamp if available
+        if 'created_at' in df.columns:
+            df = df.sort_values('created_at').reset_index(drop=True)
+        
+        # gas_co_ratio
+        df['gas_co_ratio'] = (df['gas'] / (df['co'] + 0.1)).fillna(0).round(4)
+        
+        # co_delta (rate of change)
+        df['co_delta'] = df['co'].diff().fillna(0).round(2)
+        
+        # co lag features
+        df['co_lag_1'] = df['co'].shift(1).fillna(df['co'].iloc[0] if len(df) > 0 else 0).round(2)
+        df['co_lag_3'] = df['co'].shift(3).fillna(df['co'].iloc[0] if len(df) > 0 else 0).round(2)
+        df['co_lag_5'] = df['co'].shift(5).fillna(df['co'].iloc[0] if len(df) > 0 else 0).round(2)
+        
+        print("✓ CO recalibration complete")
     
     print(f"\nDataset loaded: {df.shape}")
     print(f"Columns: {df.columns.tolist()}")
