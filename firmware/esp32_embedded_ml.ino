@@ -416,71 +416,152 @@ bool readPMS7003Frame(float &pm25, float &pm10, uint32_t timeoutMs = 1200) {
     return false;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MILES COMPLETE DECISION TABLE - Dynamic Remarks Generator
+// Wet-Bulb Temperature + Sensor Escalation + Multi-Sensor Logic (May 28, 2026)
+// ═══════════════════════════════════════════════════════════════════════════════
 void processDecisions(int cls, float pm25, float pm10, float co, float gas, float hum, float temp) {
+    // Step 1: Calculate Wet-Bulb Temperature (Heat Stress Indicator)
     float Tw = temp * atan(0.151977 * pow(hum + 8.313659, 0.5)) + atan(temp + hum) - atan(hum - 1.676331) + 0.00391838 * pow(hum, 1.5) * atan(0.023101 * hum) - 4.686035;
 
-    // Sensor Thresholds - RA 8749 IRR Standards
-    bool isPm25Haz = (pm25 > 100.0);
-    bool isPm10Haz = (pm10 > 230.0);
-    bool isGasHaz = (gas >= 63.0);
-    bool isCoHaz = (co > 30.0);              // MQ-7: Hazardous > 30 ppm (RA 8749 IRR)
+    // Step 2: Evaluate Sensor Thresholds (RA 8749 IRR Standards)
+    bool isPm25Haz = (pm25 > 100.0);        // PM2.5 > 100 μg/m³
+    bool isPm10Haz = (pm10 > 230.0);        // PM10 > 230 μg/m³
+    bool isGasHaz = (gas >= 63.0);          // Gas ≥ 63 ppm
+    bool isCoHaz = (co > 30.0);             // CO > 30 ppm
 
-    bool isPm25Cau = (pm25 >= 51.0);
-    bool isPm10Cau = (pm10 >= 151.0);
-    bool isGasCau = (gas >= 40.0);
-    bool isCoCau = (co > 9.0 && co <= 30.0); // MQ-7: Caution 10-30 ppm (RA 8749 IRR)
+    bool isPm25Cau = (pm25 >= 51.0);        // PM2.5 51-100 μg/m³
+    bool isPm10Cau = (pm10 >= 151.0);       // PM10 151-230 μg/m³
+    bool isGasCau = (gas >= 40.0);          // Gas 40-62 ppm
+    bool isCoCau = (co > 9.0 && co <= 30.0); // CO 10-30 ppm
 
     int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
     int hazardCount = isPm25Haz + isPm10Haz + isGasHaz + isCoHaz;
 
-    if (Tw > 30.0 || hazardCount >= 1) {
-        cls = 2;
-    } else if (cautionCount >= 1 && cls == 0) {
-        cls = 1;
+    // Step 3: Apply Decision Rules from MILES COMPLETE DECISION TABLE
+    if (hum >= 95.0 && gas <= 40.0 && Tw <= 35.0) {
+        cls = 0;  // MISTING OVERRIDE
+    }
+    else if (Tw > 35.0) {
+        cls = 2;  // EXTREME HEAT ESCALATION
+    }
+    else if (Tw > 30.0 && cls == 0) {
+        cls = 1;  // HEAT STRESS ESCALATION
+    }
+    else if (hazardCount >= 1) {
+        cls = 2;  // HAZARD ESCALATION
+    }
+    else if (cautionCount >= 1 && cls == 0) {
+        cls = 1;  // CAUTION ESCALATION
+    }
+    else if (cautionCount >= 3 && Tw > 30.0) {
+        cls = 2;  // THREE+ CAUTION WITH HEAT
     }
 
-    if (hum >= 95.0 && gas <= 40 && Tw <= 35.0) {
-        cls = 0;
-    }
-
+    // Step 4: Generate Dynamic Remarks based on Class and Sensor Patterns
     String status = "";
     String note = "";
 
     if (Tw > 35.0) {
         status = "HAZARDOUS: EVACUATE TO COOLING AREA NOW";
-        note = "Extreme heat is life-threatening.";
-    } else if (cls == 2) {
-        if (Tw > 30.0) { status = "HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK"; note = "Heat stress critical."; }
-        else if (hazardCount >= 3) { status = "HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL"; note = "Multi-sensor trigger."; }
-        else if (isGasHaz && isCoHaz) { status = "HAZARDOUS: EVACUATE AFFECTED ZONE NOW"; note = "Gas and CO critical."; }
-        else if (isPm25Haz && isCoHaz) { status = "HAZARDOUS: TREAT AS FIRE RISK NOW"; note = "PM2.5 and CO critical."; }
-        else if (isPm25Haz && isGasHaz) { status = "HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION"; note = "PM2.5 and Gas critical."; }
-        else if (isPm25Haz && isPm10Haz) { status = "HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY"; note = "PM2.5 and PM10 critical."; }
-        else if (isCoHaz) { status = "HAZARDOUS: MOVE UPWIND IMMEDIATELY"; note = "CO hazardous."; }
-        else if (isGasHaz) { status = "HAZARDOUS: STOP IGNITION ACTIVITIES NOW"; note = "Gas hazardous."; }
-        else if (isPm10Haz) { status = "HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW"; note = "PM10 hazardous."; }
-        else if (isPm25Haz) { status = "HAZARDOUS: STOP DUST WORK NOW"; note = "PM2.5 hazardous."; }
-        else { status = "HAZARDOUS: PAUSE OPERATIONS UNTIL STABLE"; note = "Hazard detected."; }
-    } else if (cls == 1) {
-        if (Tw >= 27.0 && Tw <= 30.0 && cautionCount == 0) { status = "CAUTION: SLOW WORK AND HYDRATE"; note = "Heat stress rising."; }
-        else if (cautionCount >= 3) { status = "CAUTION: ACTIVATE PROTECTIVE PROTOCOL"; note = "Multi-sensor caution."; }
-        else if (isPm10Cau && isCoCau) { status = "CAUTION: START FIRE-SOURCE CHECK"; note = "PM10 and CO caution."; }
-        else if (isPm10Cau && isGasCau) { status = "CAUTION: PREPARE RESPIRATORY PROTECTION"; note = "PM10 and Gas caution."; }
-        else if (isCoCau) { status = "CAUTION: MOVE TO CLEANER AIR ZONE"; note = "CO caution."; }
-        else if (isGasCau) { status = "CAUTION: CHECK COMBUSTION SOURCES NOW"; note = "Gas caution."; }
-        else if (isPm10Cau) { status = "CAUTION: IMPROVE VENTILATION NOW"; note = "PM10 caution."; }
-        else if (isPm25Cau) { status = "CAUTION: REDUCE DUST EXPOSURE NOW"; note = "PM2.5 caution."; }
-        else { status = "CAUTION: APPLY PPE AND REASSESS"; note = "Caution detected."; }
-    } else {
-        if (hum >= 95.0 && gas <= 40) {
+        note = "Extreme heat is life-threatening; body cannot maintain safe core temp.";
+    }
+    else if (cls == 2) {
+        if (Tw > 30.0) {
+            status = "HAZARDOUS: STOP NON-ESSENTIAL PHYSICAL WORK";
+            note = "Heat stress critical + hazardous sensors detected.";
+        }
+        else if (hazardCount >= 3) {
+            status = "HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL";
+            note = "Multi-sensor fire signature — PREPARE EVACUATION.";
+        }
+        else if (isGasHaz && isCoHaz) {
+            status = "HAZARDOUS: EVACUATE AFFECTED ZONE NOW";
+            note = "Gas and CO critical — VOC/chemical hazard detected.";
+        }
+        else if (isPm25Haz && isCoHaz) {
+            status = "HAZARDOUS: TREAT AS FIRE RISK NOW";
+            note = "PM2.5 and CO critical — verify fire status.";
+        }
+        else if (isPm25Haz && isGasHaz) {
+            status = "HAZARDOUS: CHECK COMBUSTION AND PREPARE EVACUATION";
+            note = "PM2.5 and Gas critical — check for fire/combustion.";
+        }
+        else if (isPm25Haz && isPm10Haz) {
+            status = "HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY";
+            note = "Dust hazard — High PM + Low humidity detected.";
+        }
+        else if (isCoHaz) {
+            status = "HAZARDOUS: MOVE UPWIND IMMEDIATELY";
+            note = "CO critical — identify and shut down source if safe.";
+        }
+        else if (isGasHaz) {
+            status = "HAZARDOUS: STOP IGNITION ACTIVITIES NOW";
+            note = "Combustible gas critical — stop all ignition sources.";
+        }
+        else if (isPm10Haz) {
+            status = "HAZARDOUS: ACTIVATE DUST SUPPRESSION NOW";
+            note = "PM10 critical — activate water spray and ventilate.";
+        }
+        else if (isPm25Haz) {
+            status = "HAZARDOUS: STOP DUST WORK NOW";
+            note = "PM2.5 critical — use N95+ mask and relocate.";
+        }
+        else {
+            status = "HAZARDOUS: TAKE IMMEDIATE ACTION";
+            note = "Hazardous condition detected.";
+        }
+    }
+    else if (cls == 1) {
+        if (Tw >= 27.0 && Tw <= 30.0 && cautionCount == 0) {
+            status = "CAUTION: SLOW WORK AND HYDRATE";
+            note = "Heat stress rising — increase hydration frequency.";
+        }
+        else if (cautionCount >= 3) {
+            status = "CAUTION: ACTIVATE PROTECTIVE PROTOCOL";
+            note = "Multiple sensors in caution range.";
+        }
+        else if (isPm10Cau && isCoCau) {
+            status = "CAUTION: START FIRE-SOURCE CHECK";
+            note = "PM10 and CO caution — investigate fire potential.";
+        }
+        else if (isPm10Cau && isGasCau) {
+            status = "CAUTION: PREPARE RESPIRATORY PROTECTION";
+            note = "PM10 and Gas caution — multiple hazards detected.";
+        }
+        else if (isCoCau) {
+            status = "CAUTION: MOVE TO CLEANER AIR ZONE";
+            note = "CO caution — check for combustion sources.";
+        }
+        else if (isGasCau) {
+            status = "CAUTION: CHECK COMBUSTION SOURCES NOW";
+            note = "Gas caution — potential smoke/VOC present.";
+        }
+        else if (isPm10Cau) {
+            status = "CAUTION: IMPROVE VENTILATION NOW";
+            note = "PM10 caution — increase ventilation.";
+        }
+        else if (isPm25Cau) {
+            status = "CAUTION: REDUCE DUST EXPOSURE NOW";
+            note = "PM2.5 caution — monitor air quality.";
+        }
+        else {
+            status = "CAUTION: APPLY PPE AND REASSESS";
+            note = "Caution-level condition detected.";
+        }
+    }
+    else {
+        if (hum >= 95.0 && gas <= 40.0) {
             status = "SAFE: CONTINUE WORK, NO EVACUATION";
-            note = "Extreme PM with extreme humidity indicates mist.";
-        } else if (hum > 70.0) {
+            note = "Extreme PM with extreme humidity = mist, not pollution.";
+        }
+        else if (hum > 70.0) {
             status = "SAFE: CONTINUE TASKS WITH HYDRATION";
-            note = "Elevated humidity alone is not a pollutant hazard.";
-        } else {
+            note = "Elevated humidity alone is not hazardous.";
+        }
+        else {
             status = "SAFE: CONTINUE OPERATIONS";
-            note = "All sensors normal.";
+            note = "All sensors in normal range.";
         }
     }
 

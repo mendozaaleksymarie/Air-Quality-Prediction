@@ -128,20 +128,32 @@ def convert_adc_to_ppm_co(adc_value):
 # TRAINING SIMULATION & FIELD DEPLOYMENT REMARKS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# =============================================================================
+# SCENARIO REMARKS - MILES COMPLETE DECISION TABLE (May 28, 2026)
+# All Training Scenarios + Sensor Escalation + Wet-Bulb Temperature
+# =============================================================================
 SCENARIO_REMARKS = {
-    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: NORMAL OPERATIONS'},
-    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: WEAR FACE MASK'},
-    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: MISTING DETECTED'},
-    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: EVACUATE AREA NOW'},
-    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: CHECK FOR FIRE'},
-    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: IMPROVE VENTILATION'},
-    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: COOL HUMID AIR'},
+    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: CONTINUE OPERATIONS', 'worker_action': 'Continue normal operations; monitor periodically'},
+    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY', 'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'},
+    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: CONTINUE WORK, NO EVACUATION', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
+    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
+    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: CHECK FOR FIRE', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
+    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: EVACUATE AFFECTED ZONE NOW', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
+    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: CONTINUE TASKS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
     8: {
         'name': 'FIELD DEPLOYMENT',
         'class_remarks': {
             0: 'SAFE: CONTINUE OPERATIONS',
             1: 'CAUTION: MONITOR CONDITIONS',
             2: 'HAZARDOUS: TAKE ACTION'
+        },
+        'dynamic_remarks': {
+            'misting': 'SAFE: CONTINUE WORK, NO EVACUATION',
+            'dust_storm': 'HAZARDOUS: DUST STORM → Wear N95/FFP2, minimize outdoor exposure',
+            'smoke': 'HAZARDOUS: SMOKE DETECTED → Check for fire/equipment failure, evacuate if needed',
+            'co_spike': 'HAZARDOUS: CO SPIKE → Identify source (generator/exhaust), SHUT DOWN if safe, move upwind',
+            'heat_stress': 'CAUTION: HEAT STRESS → Slow work and increase hydration',
+            'voc_chemical': 'HAZARDOUS: VOC/CHEMICAL → Evacuate affected zone, improve ventilation'
         }
     }
 }
