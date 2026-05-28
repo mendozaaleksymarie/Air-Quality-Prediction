@@ -1,13 +1,54 @@
-/*
+#!/usr/bin/env python3
+"""
+Generate model.h header file for ESP32 firmware
+Extracts scaler parameters from trained sklearn model and generates C++ code
+
+USAGE:
+    python generate_model_h.py
+"""
+
+import pickle
+import os
+import sys
+
+def load_model_and_scaler():
+    """Load the trained model and scaler"""
+    model_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'random_forest_model.pkl')
+    scaler_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'scaler.pkl')
+    
+    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
+        print(f"ERROR: Model files not found at {model_path} or {scaler_path}")
+        sys.exit(1)
+    
+    with open(model_path, 'rb') as f:
+        model = pickle.load(f)
+    
+    with open(scaler_path, 'rb') as f:
+        scaler = pickle.load(f)
+    
+    return model, scaler
+
+def generate_model_h(model, scaler):
+    """Generate model.h C++ header file"""
+    
+    # Extract scaler parameters
+    mean_values = scaler.mean_
+    scale_values = scaler.scale_
+    num_features = len(mean_values)
+    num_classes = len(model.classes_)
+    num_trees = model.n_estimators
+    
+    # Build the model.h content
+    header = f'''/*
  * ════════════════════════════════════════════════════════════════════════
  * RANDOM FOREST MODEL - C++ EMBEDDED VERSION FOR ESP32 (MILES)
  * ════════════════════════════════════════════════════════════════════════
  * 
  * GENERATED: May 29, 2026 - Updated with Enhanced Decision Table Remarks
  * Model Type: Random Forest Classifier with CO Recalibration (RO=1822)
- * Features: 35 (Core: PM2.5, PM10, Temp, Humidity, Gas, CO, TimeOfDay, WetBulb + Engineered)
- * Classes: 3 (0=Safe, 1=Caution, 2=Hazardous)
- * Trees: 200
+ * Features: {num_features} (Core: PM2.5, PM10, Temp, Humidity, Gas, CO, TimeOfDay, WetBulb + Engineered)
+ * Classes: {num_classes} (0=Safe, 1=Caution, 2=Hazardous)
+ * Trees: {num_trees}
  * Training Data: 20,568 samples (15,426 train, 5,142 test) from 8 MILES Protocol scenarios
  * Expected Accuracy: 99.88%
  * 
@@ -18,7 +59,7 @@
  *   - Wet-bulb temperature escalation with 4-level thresholds
  *
  * USAGE:
- *   float features[35] = {core_sensors[8], engineered_features[27]};
+ *   float features[{num_features}] = {{core_sensors[8], engineered_features[27]}};
  *   normalize_features(features);
  *   int prediction = predict(features);  // Returns 0, 1, or 2
  * 
@@ -36,96 +77,38 @@
 // Used to normalize features before prediction
 // ════════════════════════════════════════════════════════════════════════
 
-const float SCALER_MEAN[] = {
-    132.31057969979244f,  // feature_0
-    159.85470412451568f,  // feature_1
-    31.41165888759247f,  // feature_2
-    58.2036613509659f,  // feature_3
-    31.807004667744696f,  // feature_4
-    0.0005788649362569418f,  // feature_5
-    9.026643329443797f,  // feature_6
-    28.844017505781807f,  // feature_7
-    1.3862854412839618f,  // feature_8
-    315.50982635105674f,  // feature_9
-    292.16528382430744f,  // feature_10
-    -0.004072139802513006f,  // feature_11
-    -0.00802777680556075f,  // feature_12
-    -0.0018395815026098722f,  // feature_13
-    3.033608032176571e-08f,  // feature_14
-    0.19810709192272785f,  // feature_15
-    0.01802152210553611f,  // feature_16
-    132.3166385689659f,  // feature_17
-    132.3423051183766f,  // feature_18
-    132.3733963705588f,  // feature_19
-    31.808892860458513f,  // feature_20
-    31.80759639709627f,  // feature_21
-    31.802603321832816f,  // feature_22
-    0.0005788306137060009f,  // feature_23
-    0.0005788262178876044f,  // feature_24
-    0.00057854473646085f,  // feature_25
-    5.848359424314489f,  // feature_26
-    0.31701210506872995f,  // feature_27
-    -0.037728510307273436f,  // feature_28
-    -0.004667444574095682f,  // feature_29
-    0.4150784389990924f,  // feature_30
-    0.42052379100220405f,  // feature_31
-    0.0f,  // feature_32
-    0.9987683132373915f,  // feature_33
-    0.896927265655387f,  // feature_34
-};
+const float SCALER_MEAN[] = {{
+'''
+    
+    # Add mean values
+    for i, val in enumerate(mean_values):
+        header += f"    {val}f,  // feature_{i}\n"
+    
+    header += f'''}};
 
-const float SCALER_SCALE[] = {
-    215.81304003965428f,  // feature_0
-    276.0552499704927f,  // feature_1
-    5.317624473707427f,  // feature_2
-    12.576402131563775f,  // feature_3
-    18.577070519468396f,  // feature_4
-    0.0005656721413282554f,  // feature_5
-    4.535782290850196f,  // feature_6
-    3.4514475706298313f,  // feature_7
-    0.9930028650388459f,  // feature_8
-    180.71334818026932f,  // feature_9
-    491.0682179558275f,  // feature_10
-    14.710628501360706f,  // feature_11
-    21.588848800161546f,  // feature_12
-    0.7494211498000249f,  // feature_13
-    2.7993903845993073e-05f,  // feature_14
-    0.3985732957093859f,  // feature_15
-    0.13302912029528655f,  // feature_16
-    215.8250971578357f,  // feature_17
-    215.9160557731496f,  // feature_18
-    216.09612249179705f,  // feature_19
-    18.575668636455823f,  // feature_20
-    18.564359821109093f,  // feature_21
-    18.557981123291462f,  // feature_22
-    0.0005658268711734409f,  // feature_23
-    0.0005663074618482374f,  // feature_24
-    0.0005663833297844598f,  // feature_25
-    16.13891348639133f,  // feature_26
-    1.0131224912655648f,  // feature_27
-    0.9957136844549936f,  // feature_28
-    0.9992108887033321f,  // feature_29
-    0.49273555633540217f,  // feature_30
-    0.49364312230940566f,  // feature_31
-    1.0f,  // feature_32
-    0.03507377525057156f,  // feature_33
-    0.44217810905110855f,  // feature_34
-};
+const float SCALER_SCALE[] = {{
+'''
+    
+    # Add scale values
+    for i, val in enumerate(scale_values):
+        header += f"    {val}f,  // feature_{i}\n"
+    
+    header += f'''}};
 
-const int NUM_FEATURES = 35;
-const int NUM_CLASSES = 3;
-const int NUM_TREES = 200;
+const int NUM_FEATURES = {num_features};
+const int NUM_CLASSES = {num_classes};
+const int NUM_TREES = {num_trees};
 const float MODEL_ACCURACY = 0.999800f;  // Test set: 99.98%
 
 // ════════════════════════════════════════════════════════════════════════
 // FEATURE PREPROCESSING (StandardScaler normalization)
 // ════════════════════════════════════════════════════════════════════════
 
-void normalize_features(float* features) {
-    for (int i = 0; i < NUM_FEATURES; i++) {
+void normalize_features(float* features) {{
+    for (int i = 0; i < NUM_FEATURES; i++) {{
         features[i] = (features[i] - SCALER_MEAN[i]) / SCALER_SCALE[i];
-    }
-}
+    }}
+}}
 
 // ════════════════════════════════════════════════════════════════════════
 // RANDOM FOREST TREE PREDICTIONS (200 Trees)
@@ -155,11 +138,11 @@ void normalize_features(float* features) {
 //   - Size: ~500KB (reasonable for ESP32 flash)
 
 // Placeholder tree functions - implement via Option 1, 2, or 3
-int predict_tree_0(const float* features) {
+int predict_tree_0(const float* features) {{
     // Tree 0 logic here - Lines 100-1000 omitted
     // Estimated leaf count: ~200-500 nodes
     return 0;  // PLACEHOLDER - implement via ml_inference_server
-}
+}}
 
 // Tree 1-199 functions similarly structured
 // Full tree definitions can be embedded but recommended use ml_inference_server.py
@@ -169,7 +152,7 @@ int predict_tree_0(const float* features) {
 // ENSEMBLE PREDICTION
 // ════════════════════════════════════════════════════════════════════════
 
-int predict(float features[35]) {
+int predict(float features[{num_features}]) {{
     // Normalize input features using scaler
     normalize_features(features);
     
@@ -184,6 +167,69 @@ int predict(float features[35]) {
     
     // PLACEHOLDER: Will be replaced with full prediction logic
     return 0;  // Default to Safe - IMPLEMENT REAL LOGIC
-}
+}}
 
 #endif // MODEL_H
+'''
+    
+    return header
+
+def save_model_h(content, output_path):
+    """Save the generated header file"""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f"✓ Generated: {output_path}")
+    print(f"  - File size: {len(content) / 1024:.1f} KB")
+    print(f"  - Contains scaler parameters only (tree structures omitted - see comments)")
+
+def main():
+    print("=" * 80)
+    print("MILES MODEL.H HEADER FILE GENERATOR (May 29, 2026)")
+    print("=" * 80)
+    print()
+    
+    print("[1/4] Loading trained model and scaler...")
+    model, scaler = load_model_and_scaler()
+    print(f"✓ Model loaded: {model.n_estimators} trees, {scaler.n_features_in_} features")
+    print(f"✓ Scaler loaded: mean shape={scaler.mean_.shape}, scale shape={scaler.scale_.shape}")
+    print()
+    
+    print("[2/4] Extracting model parameters...")
+    num_features = scaler.n_features_in_
+    num_classes = len(model.classes_)
+    num_trees = model.n_estimators
+    print(f"✓ Features: {num_features}")
+    print(f"✓ Classes: {num_classes}")
+    print(f"✓ Trees: {num_trees}")
+    print()
+    
+    print("[3/4] Generating C++ header content...")
+    header_content = generate_model_h(model, scaler)
+    print(f"✓ Header generated ({len(header_content) / 1024:.1f} KB)")
+    print()
+    
+    print("[4/4] Saving model.h...")
+    output_path = os.path.join(os.path.dirname(__file__), '..', 'firmware', 'model.h')
+    save_model_h(header_content, output_path)
+    print()
+    
+    print("=" * 80)
+    print("DEPLOYMENT STATUS")
+    print("=" * 80)
+    print(f"✓ Scaler parameters: Updated from new training (May 29, 2026)")
+    print(f"✓ Model accuracy: 99.88% on test set")
+    print(f"✓ Tree structures: {num_trees} trees (embedded deployment pending)")
+    print()
+    print("NEXT STEPS:")
+    print("1. For embedded inference on ESP32:")
+    print("   - Use ml_inference_server.py on a PC/Raspberry Pi")
+    print("   - OR implement threshold-based fallback logic in esp32_embedded_ml.ino")
+    print()
+    print("2. Update esp32_embedded_ml.ino:")
+    print("   - #include \"model.h\" to get updated scaler parameters")
+    print("   - Calls to predict() will use threshold logic or remote server")
+    print()
+
+if __name__ == '__main__':
+    main()

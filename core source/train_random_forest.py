@@ -129,119 +129,162 @@ def convert_adc_to_ppm_co(adc_value):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # =============================================================================
-# SCENARIO REMARKS - MILES COMPLETE DECISION TABLE (May 28, 2026)
+# SCENARIO REMARKS - MILES COMPLETE DECISION TABLE (May 29, 2026 - Enhanced)
 # All Training Scenarios + Sensor Escalation + Wet-Bulb Temperature
 # =============================================================================
 SCENARIO_REMARKS = {
-    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: CONTINUE OPERATIONS', 'worker_action': 'Continue normal operations; monitor periodically'},
-    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: ENFORCE RESPIRATORS IMMEDIATELY', 'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'},
-    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: CONTINUE WORK, NO EVACUATION', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
-    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: EXECUTE FULL EMERGENCY PROTOCOL', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
-    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: CHECK FOR FIRE', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
-    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: EVACUATE AFFECTED ZONE NOW', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
-    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: CONTINUE TASKS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
+    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS', 'worker_action': 'Continue normal operations; monitor periodically'},
+    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY', 'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'},
+    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
+    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: MULTIPLE SENSORS CRITICAL, EXECUTE FULL EMERGENCY PROTOCOL', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
+    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
+    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
+    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: ELEVATED HUMIDITY ONLY, CONTINUE TASKS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
     8: {
         'name': 'FIELD DEPLOYMENT',
         'class_remarks': {
-            0: 'SAFE: CONTINUE OPERATIONS',
+            0: 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS',
             1: 'CAUTION: MONITOR CONDITIONS',
             2: 'HAZARDOUS: TAKE ACTION'
         },
         'dynamic_remarks': {
-            'misting': 'SAFE: CONTINUE WORK, NO EVACUATION',
-            'dust_storm': 'HAZARDOUS: DUST STORM → Wear N95/FFP2, minimize outdoor exposure',
-            'smoke': 'HAZARDOUS: SMOKE DETECTED → Check for fire/equipment failure, evacuate if needed',
-            'co_spike': 'HAZARDOUS: CO SPIKE → Identify source (generator/exhaust), SHUT DOWN if safe, move upwind',
-            'heat_stress': 'CAUTION: HEAT STRESS → Slow work and increase hydration',
-            'voc_chemical': 'HAZARDOUS: VOC/CHEMICAL → Evacuate affected zone, improve ventilation'
+            'misting': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK',
+            'dust_storm': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY',
+            'smoke': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION',
+            'co_spike': 'HAZARDOUS: CO LEVELS CRITICAL, MOVE UPWIND IMMEDIATELY',
+            'heat_stress_caution': 'CAUTION: ELEVATED HEAT, SLOW WORK AND HYDRATE',
+            'heat_stress_hazard': 'HAZARDOUS: HIGH WET-BULB TEMP, STOP NON-ESSENTIAL PHYSICAL WORK',
+            'voc_chemical': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW'
         }
     }
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SENSOR COMBINATION ESCALATION REMARKS (Multi-Sensor Logic)
+# Updated with MILES Complete Decision Table (May 29, 2026)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 SENSOR_COMBINATION_REMARKS = {
+    # CLASS 0 (SAFE) - 3 conditions
     'all_safe': {
         'class': 0,
-        'remark': 'SAFE: ALL SENSORS NORMAL',
+        'remark': 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS',
         'worker_action': 'Continue operations normally'
     },
-    'single_pm25': {
+    'high_humidity_safe': {
+        'class': 0,
+        'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK',
+        'worker_action': 'Extreme PM with extreme humidity indicates mist; not a health hazard'
+    },
+    'elevated_humidity_safe': {
+        'class': 0,
+        'remark': 'SAFE: ELEVATED HUMIDITY ONLY, CONTINUE TASKS WITH HYDRATION',
+        'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'
+    },
+    
+    # CLASS 1 (CAUTION) - 8 combinations
+    'single_pm25_caution': {
         'class': 1,
-        'remark': 'CAUTION: ELEVATED DUST',
-        'worker_action': 'Monitor air quality, consider mask if heavy work'
+        'remark': 'CAUTION: FINE DUST RISING, REDUCE DUST EXPOSURE NOW',
+        'worker_action': 'Monitor air quality; reduce dust exposure; increase ventilation'
     },
-    'single_pm10': {
+    'single_pm10_caution': {
         'class': 1,
-        'remark': 'CAUTION: COARSE PARTICLES',
-        'worker_action': 'Increase ventilation, monitor conditions'
+        'remark': 'CAUTION: COARSE DUST RISING, IMPROVE VENTILATION NOW',
+        'worker_action': 'Increase ventilation; monitor work pace; activate dust suppression'
     },
-    'single_gas': {
+    'single_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: COMBUSTIBLES DETECTED',
-        'worker_action': 'Check for smoke sources, increase ventilation'
+        'remark': 'CAUTION: COMBUSTIBLE GAS DETECTED, CHECK SOURCES NOW',
+        'worker_action': 'Check for machinery exhaust/fire; increase ventilation'
     },
-    'single_co': {
+    'single_co_caution': {
         'class': 1,
-        'remark': 'CAUTION: ELEVATED CO',
-        'worker_action': 'Check for exhaust/fire, ventilate area'
+        'remark': 'CAUTION: CO LEVELS RISING, MOVE TO CLEANER AIR ZONE',
+        'worker_action': 'Verify fire status; check generator/machinery exhaust'
     },
-    'pm25_pm10': {
-        'class': 2,
-        'remark': 'HAZARDOUS: DUST STORM',
-        'worker_action': 'Wear N95 mask immediately, minimize exposure'
-    },
-    'pm25_gas': {
-        'class': 2,
-        'remark': 'HAZARDOUS: SMOKE DETECTED',
-        'worker_action': 'Check for fire/equipment failure, evacuate if needed'
-    },
-    'pm25_co': {
-        'class': 2,
-        'remark': 'HAZARDOUS: FIRE HAZARD',
-        'worker_action': 'Verify fire status, prepare evacuation'
-    },
-    'gas_co': {
-        'class': 2,
-        'remark': 'HAZARDOUS: CHEMICAL VAPORS',
-        'worker_action': 'Evacuate area, call hazmat or emergency'
-    },
-    'pm10_gas': {
+    'pm10_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: COMBINED HAZARD RISKING',
-        'worker_action': 'Increase monitoring, reduce work intensity'
+        'remark': 'CAUTION: DUST AND GAS RISING, PREPARE RESPIRATORY PROTECTION',
+        'worker_action': 'Increase monitoring; reduce work intensity; prepare PPE'
     },
-    'pm10_co': {
+    'pm10_co_caution': {
         'class': 1,
-        'remark': 'CAUTION: CHECK FOR FIRE',
-        'worker_action': 'Investigate fire potential, ventilate'
+        'remark': 'CAUTION: DUST AND CO RISING, START FIRE-SOURCE CHECK',
+        'worker_action': 'Investigate fire potential; increase ventilation; be ready to evacuate'
     },
-    'three_sensors': {
-        'class': 2,
-        'remark': 'HAZARDOUS: MULTI-SENSOR ALERT',
-        'worker_action': 'MANDATORY PROTECTIVE ACTION - Mask/Ventilate/Evacuate'
+    'multi_sensor_caution': {
+        'class': 1,
+        'remark': 'CAUTION: MULTIPLE SENSORS RISING, ACTIVE PROTECTIVE PROTOCOL',
+        'worker_action': 'Initiate protective measures; reduce exertion; monitor closely'
     },
+    'heat_stress_caution': {
+        'class': 1,
+        'remark': 'CAUTION: ELEVATED HEAT, SLOW WORK AND HYDRATE',
+        'worker_action': 'Increase hydration frequency; reduce work intensity; take breaks'
+    },
+    
+    # CLASS 2 (HAZARDOUS) - 11 combinations and single hazardous sensors
     'single_pm25_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: EXTREME DUST - USE RESPIRATOR, RELOCATE',
+        'remark': 'HAZARDOUS: FINE DUST CRITICAL, STOP DUST-PRODUCING WORK NOW',
         'worker_action': 'IMMEDIATE: Stop dust work, use HEPA/N95+ mask, move to ventilated area'
     },
     'single_pm10_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: PARTICLES CRITICAL - SUPPRESS DUST SOURCE',
+        'remark': 'HAZARDOUS: COARSE DUST CRITICAL, ACTIVATE DUST SUPPRESSION NOW',
         'worker_action': 'IMMEDIATE: Activate dust suppression (water spray), increase ventilation'
     },
     'single_gas_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: COMBUSTIBLES EXTREME - IDENTIFY SOURCE NOW',
+        'remark': 'HAZARDOUS: GAS LEAK DETECTED, STOP IGNITION ACTIVITIES NOW',
         'worker_action': 'IMMEDIATE: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES'
     },
     'single_co_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: CO CRITICAL - CHECK MACHINERY/ENGINES',
+        'remark': 'HAZARDOUS: CO LEVELS CRITICAL, MOVE UPWIND IMMEDIATELY',
         'worker_action': 'IMMEDIATE: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind'
+    },
+    'pm25_pm10_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY',
+        'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'
+    },
+    'pm25_gas_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION',
+        'worker_action': 'Investigate fire source; increase ventilation; be ready to evacuate'
+    },
+    'pm25_co_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: HIGH DUST AND CO DETECTED, TREAT AS FIRE RISK NOW',
+        'worker_action': 'Verify fire status; prepare evacuation routes; call emergency if needed'
+    },
+    'gas_co_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW',
+        'worker_action': 'MANDATORY EVACUATION - hazmat situation; call emergency services'
+    },
+    'multi_sensor_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: MULTIPLE SENSORS CRITICAL, EXECUTE FULL EMERGENCY PROTOCOL',
+        'worker_action': 'MANDATORY PROTECTIVE ACTION - Mask/Ventilate/Evacuate per hierarchy'
+    },
+    'heat_stress_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: HIGH WET-BULB TEMP, STOP NON-ESSENTIAL PHYSICAL WORK',
+        'worker_action': 'MANDATORY BREAK - cease non-essential work; hydrate; cool down'
+    },
+    'extreme_heat_hazard': {
+        'class': 2,
+        'remark': 'HAZARDOUS: EXTREME HEAT DETECTED, EVACUATE TO COOLING AREA NOW',
+        'worker_action': 'IMMEDIATE EVACUATION - move to cool environment; emergency medical standby'
+    },
+    # Fallback for any hazardous (catches single hazardous sensors not specifically matched)
+    'any_hazardous': {
+        'class': 2,
+        'remark': 'HAZARDOUS: ANOMALY DETECTED, PAUSE OPERATIONS UNTIL STABLE',
+        'worker_action': 'Stop operations; investigate; resume only when safe'
     }
 }
 
@@ -495,7 +538,9 @@ def get_field_class_remark(class_label):
 
 def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_status):
     """
-    Determine which sensor combination remark applies
+    Determine which sensor combination remark applies.
+    Maps sensor status (safe/caution/hazardous) to appropriate remark from SENSOR_COMBINATION_REMARKS.
+    
     Returns: (combo_key, remark_dict)
     """
     sensors_in_caution = sum([
@@ -512,42 +557,72 @@ def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_statu
         co_status == 'hazardous'
     ])
     
-    # If any hazardous
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # HAZARDOUS COMBINATIONS (Highest priority)
+    # ═══════════════════════════════════════════════════════════════════════════════
     if sensors_in_hazardous >= 1:
+        # Single hazardous sensors
+        if pm25_status == 'hazardous' and pm10_status != 'hazardous' and gas_status != 'hazardous' and co_status != 'hazardous':
+            return 'single_pm25_hazard', SENSOR_COMBINATION_REMARKS['single_pm25_hazard']
+        if pm10_status == 'hazardous' and pm25_status != 'hazardous' and gas_status != 'hazardous' and co_status != 'hazardous':
+            return 'single_pm10_hazard', SENSOR_COMBINATION_REMARKS['single_pm10_hazard']
+        if gas_status == 'hazardous' and pm25_status != 'hazardous' and pm10_status != 'hazardous' and co_status != 'hazardous':
+            return 'single_gas_hazard', SENSOR_COMBINATION_REMARKS['single_gas_hazard']
+        if co_status == 'hazardous' and pm25_status != 'hazardous' and pm10_status != 'hazardous' and gas_status != 'hazardous':
+            return 'single_co_hazard', SENSOR_COMBINATION_REMARKS['single_co_hazard']
+        
+        # Dangerous hazardous combinations
+        if gas_status == 'hazardous' and co_status == 'hazardous':
+            return 'gas_co_hazard', SENSOR_COMBINATION_REMARKS['gas_co_hazard']
+        if pm25_status == 'hazardous' and gas_status == 'hazardous':
+            return 'pm25_gas_hazard', SENSOR_COMBINATION_REMARKS['pm25_gas_hazard']
+        if pm25_status == 'hazardous' and co_status == 'hazardous':
+            return 'pm25_co_hazard', SENSOR_COMBINATION_REMARKS['pm25_co_hazard']
+        if pm25_status == 'hazardous' and pm10_status == 'hazardous':
+            return 'pm25_pm10_hazard', SENSOR_COMBINATION_REMARKS['pm25_pm10_hazard']
+        
+        # Multiple hazardous sensors
+        if sensors_in_hazardous >= 3:
+            return 'multi_sensor_hazard', SENSOR_COMBINATION_REMARKS['multi_sensor_hazard']
+        
+        # Fallback for any hazardous
         return 'any_hazardous', SENSOR_COMBINATION_REMARKS['any_hazardous']
     
-    # If all safe
-    if sensors_in_caution == 0:
-        return 'all_safe', SENSOR_COMBINATION_REMARKS['all_safe']
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # CAUTION COMBINATIONS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    if sensors_in_caution >= 1:
+        # Check specific two-sensor caution combinations (dangerous pairs)
+        if pm25_status == 'caution' and pm10_status == 'caution':
+            return 'pm25_pm10_hazard', SENSOR_COMBINATION_REMARKS['pm25_pm10_hazard']
+        if pm10_status == 'caution' and gas_status == 'caution':
+            return 'pm10_gas_caution', SENSOR_COMBINATION_REMARKS['pm10_gas_caution']
+        if pm10_status == 'caution' and co_status == 'caution':
+            return 'pm10_co_caution', SENSOR_COMBINATION_REMARKS['pm10_co_caution']
+        if gas_status == 'caution' and co_status == 'caution':
+            return 'gas_co_hazard', SENSOR_COMBINATION_REMARKS['gas_co_hazard']
+        if pm25_status == 'caution' and gas_status == 'caution':
+            return 'pm25_gas_hazard', SENSOR_COMBINATION_REMARKS['pm25_gas_hazard']
+        if pm25_status == 'caution' and co_status == 'caution':
+            return 'pm25_co_hazard', SENSOR_COMBINATION_REMARKS['pm25_co_hazard']
+        
+        # Three or more caution sensors
+        if sensors_in_caution >= 3:
+            return 'multi_sensor_caution', SENSOR_COMBINATION_REMARKS['multi_sensor_caution']
+        
+        # Single sensor in caution
+        if pm25_status == 'caution':
+            return 'single_pm25_caution', SENSOR_COMBINATION_REMARKS['single_pm25_caution']
+        if pm10_status == 'caution':
+            return 'single_pm10_caution', SENSOR_COMBINATION_REMARKS['single_pm10_caution']
+        if gas_status == 'caution':
+            return 'single_gas_caution', SENSOR_COMBINATION_REMARKS['single_gas_caution']
+        if co_status == 'caution':
+            return 'single_co_caution', SENSOR_COMBINATION_REMARKS['single_co_caution']
     
-    # Check specific two-sensor dangerous combinations
-    if pm25_status == 'caution' and pm10_status == 'caution':
-        return 'pm25_pm10', SENSOR_COMBINATION_REMARKS['pm25_pm10']
-    if pm25_status == 'caution' and gas_status == 'caution':
-        return 'pm25_gas', SENSOR_COMBINATION_REMARKS['pm25_gas']
-    if pm25_status == 'caution' and co_status == 'caution':
-        return 'pm25_co', SENSOR_COMBINATION_REMARKS['pm25_co']
-    if gas_status == 'caution' and co_status == 'caution':
-        return 'gas_co', SENSOR_COMBINATION_REMARKS['gas_co']
-    if pm10_status == 'caution' and gas_status == 'caution':
-        return 'pm10_gas', SENSOR_COMBINATION_REMARKS['pm10_gas']
-    if pm10_status == 'caution' and co_status == 'caution':
-        return 'pm10_co', SENSOR_COMBINATION_REMARKS['pm10_co']
-    
-    # If three or more in caution
-    if sensors_in_caution >= 3:
-        return 'three_sensors', SENSOR_COMBINATION_REMARKS['three_sensors']
-    
-    # Single sensor in caution
-    if pm25_status == 'caution':
-        return 'single_pm25', SENSOR_COMBINATION_REMARKS['single_pm25']
-    if pm10_status == 'caution':
-        return 'single_pm10', SENSOR_COMBINATION_REMARKS['single_pm10']
-    if gas_status == 'caution':
-        return 'single_gas', SENSOR_COMBINATION_REMARKS['single_gas']
-    if co_status == 'caution':
-        return 'single_co', SENSOR_COMBINATION_REMARKS['single_co']
-    
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # SAFE CONDITIONS
+    # ═══════════════════════════════════════════════════════════════════════════════
     return 'all_safe', SENSOR_COMBINATION_REMARKS['all_safe']
 
 # Status to alarm label mapping
