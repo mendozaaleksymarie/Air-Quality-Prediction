@@ -112,6 +112,18 @@ SensorReading sensorHistory[HISTORY_SIZE];
 int historyIndex = 0;
 bool historyFull = false;
 
+// ===== ENHANCED SD LOGGING CONFIGURATION =====
+#define MAX_FILE_SIZE_BYTES 52428800  // 50 MB per file
+#define FILE_SIZE_CHECK_INTERVAL 600000  // Check size every 10 minutes
+unsigned long lastFileSizeCheck = 0;
+
+struct SDStats {
+    unsigned long totalBytesWritten;
+    int rotationCount;
+    unsigned long lastWriteTime;
+};
+SDStats sdStats = {0, 0, 0};
+
 void addToHistory(float pm25, float pm10, float t, float h, float g, float c, float wb) {
     sensorHistory[historyIndex].pm2_5 = pm25;
     sensorHistory[historyIndex].pm10 = pm10;
@@ -522,6 +534,76 @@ void scrollRemark(String msg) {
     }
 }
 
+// Check and rotate SD log file if size limit reached
+void checkAndRotateLogFile() {
+    if (millis() - lastFileSizeCheck < FILE_SIZE_CHECK_INTERVAL) {
+        return;  // Skip if checked recently
+    }
+    lastFileSizeCheck = millis();
+    
+    File currentFile = SD.open(fileName, FILE_READ);
+    if (currentFile) {
+        unsigned long fileSize = currentFile.size();
+        currentFile.close();
+        
+        if (fileSize >= MAX_FILE_SIZE_BYTES) {
+            // File size limit reached - rotate to new file
+            int fileNum = 1;
+            while (SD.exists("/MILES_LOG_" + String(fileNum) + ".csv")) fileNum++;
+            
+            String oldFileName = fileName;
+            fileName = "/MILES_LOG_" + String(fileNum) + ".csv";
+            sdStats.rotationCount++;
+            sdStats.totalBytesWritten = 0;
+            
+            // Create new file with header
+            File newFile = SD.open(fileName, FILE_WRITE);
+            if (newFile) {
+                newFile.println("Timestamp,PM2.5,PM10,Temp,Hum,Gas,CO,Class,Remark");
+                newFile.close();
+                
+                // Log rotation event
+                Serial.println("LOG ROTATED: " + oldFileName + " -> " + fileName);
+                Serial.println("Previous file size: " + String(fileSize) + " bytes");
+            }
+        }
+    }
+}
+
+// Enhanced SD write with error recovery
+bool writeToSDCard(const String& timestamp, float pm2_5, float pm10, 
+                   float temp, float hum, float gas, float co, 
+                   int cls, const String& remark) {
+    int retries = 3;
+    while (retries > 0) {
+        File file = SD.open(fileName, FILE_APPEND);
+        if (file) {
+            String line = "";
+            line += timestamp + ",";
+            line += String(pm2_5, 1) + ",";
+            line += String(pm10, 1) + ",";
+            line += String(temp, 1) + ",";
+            line += String(hum, 1) + ",";
+            line += String(gas, 1) + ",";
+            line += String(co, 1) + ",";
+            line += String(cls) + ",";
+            line += remark + "\n";
+            
+            size_t bytesWritten = file.print(line);
+            file.close();
+            
+            if (bytesWritten > 0) {
+                sdStats.totalBytesWritten += bytesWritten;
+                sdStats.lastWriteTime = millis();
+                return true;
+            }
+        }
+        retries--;
+        if (retries > 0) delay(100);  // Brief delay before retry
+    }
+    return false;  // Failed after retries
+}
+
 void setup() {
     Serial.begin(115200);
     Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
@@ -538,20 +620,35 @@ void setup() {
     lcd.setCursor(0, 1); lcd.print("DATA STATION");
     delay(2000);
 
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("CHECKING SD CARD...");
-    while (!SD.begin(SD_CS)) {
-        lcd.setCursor(0, 1); lcd.print("SD CARD: NOT FOUND");
-        delay(1000);
+    lcd.clear(); lcd.setCursor(0, 0); lcd.print("INITIALIZING LOG...");
+    
+    // Initialize SD card
+    if (!SD.begin(SD_CS)) {
+        lcd.clear(); lcd.setCursor(0, 0); lcd.print("SD INIT FAILED!");
+        delay(2000);
+        return;  // Exit setup if SD fails
     }
-
+    
+    // Enhanced file initialization with timestamp-based naming
     int fileNum = 1;
-    while (SD.exists("/MILES_S" + String(fileNum) + ".csv")) fileNum++;
-    fileName = "/MILES_S" + String(fileNum) + ".csv";
-
+    while (SD.exists("/MILES_LOG_" + String(fileNum) + ".csv")) fileNum++;
+    fileName = "/MILES_LOG_" + String(fileNum) + ".csv";
+    
     File file = SD.open(fileName, FILE_WRITE);
     if (file) {
-        file.println("Timestamp,PM2.5,PM10,Temp,Hum,Gas,CO,Class,Remark");
+        String header = "Timestamp,PM2.5,PM10,Temp,Hum,Gas,CO,Class,Remark\n";
+        file.print(header);
         file.close();
+        sdStats.totalBytesWritten = header.length();
+        sdStats.rotationCount = fileNum - 1;
+        lcd.clear(); lcd.setCursor(0, 0); 
+        lcd.print("LOG: MILES_LOG_" + String(fileNum));
+        delay(1500);
+    } else {
+        lcd.clear(); lcd.setCursor(0, 0); 
+        lcd.print("SD INIT FAILED!");
+        delay(2000);
+        return;  // Exit setup if file creation fails
     }
 
     lcd.clear(); lcd.setCursor(0, 0); lcd.print("CONNECTING WIFI...");
@@ -669,11 +766,19 @@ void loop() {
         reading.cls = lastClass;
         reading.remark = lcdRemark;
 
-        File file = SD.open(fileName, FILE_APPEND);
-        if (file) {
-            file.printf("%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s\n",
-                        reading.timestamp.c_str(), reading.pm2_5, reading.pm10, reading.temp, reading.hum, reading.gas, reading.co, reading.cls, reading.remark.c_str());
-            file.close();
+        // Check for log file rotation
+        checkAndRotateLogFile();
+        
+        // Write to SD with enhanced error handling
+        bool writeSuccess = writeToSDCard(
+            reading.timestamp, reading.pm2_5, reading.pm10, 
+            reading.temp, reading.hum, reading.gas, reading.co, 
+            reading.cls, reading.remark
+        );
+        
+        if (!writeSuccess) {
+            // Log write failed - optional alert
+            Serial.println("WARNING: SD write failed for timestamp " + reading.timestamp);
         }
 
         if (Blynk.connected()) {
