@@ -133,28 +133,29 @@ def convert_adc_to_ppm_co(adc_value):
 # All Training Scenarios + Sensor Escalation + Wet-Bulb Temperature
 # =============================================================================
 SCENARIO_REMARKS = {
-    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS', 'worker_action': 'Continue normal operations; monitor periodically'},
-    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY', 'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'},
-    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
-    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: MULTIPLE SENSORS CRITICAL, EXECUTE FULL EMERGENCY PROTOCOL', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
-    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
-    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
-    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: ELEVATED HUMIDITY ONLY, CONTINUE TASKS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
+    1: {'name': 'BASELINE', 'class': 0, 'remark': 'SAFE: AIR QUALITY OPTIMAL. CONTINUE OPERATIONS', 'worker_action': 'Continue normal operations; monitor periodically'},
+    2: {'name': 'PURE DUST', 'class': 2, 'remark': 'HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS & SUPPRESS DUST SOURCE', 'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'},
+    3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
+    4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE & SECURE ZONE', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
+    5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: COMBUSTION RISK. EQUIP MASKS & SUSPEND HOT WORKS', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
+    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
+    7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: ELEVATED HUMIDITY ONLY. CONTINUE OPERATIONS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
     8: {
         'name': 'FIELD DEPLOYMENT',
         'class_remarks': {
-            0: 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS',
+            0: 'SAFE: AIR QUALITY OPTIMAL. CONTINUE OPERATIONS',
             1: 'CAUTION: MONITOR CONDITIONS',
             2: 'HAZARDOUS: TAKE ACTION'
         },
         'dynamic_remarks': {
-            'misting': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK',
-            'dust_storm': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY',
-            'smoke': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION',
-            'co_spike': 'HAZARDOUS: CO LEVELS CRITICAL, MOVE UPWIND IMMEDIATELY',
-            'heat_stress_caution': 'CAUTION: ELEVATED HEAT, SLOW WORK AND HYDRATE',
-            'heat_stress_hazard': 'HAZARDOUS: HIGH WET-BULB TEMP, STOP NON-ESSENTIAL PHYSICAL WORK',
-            'voc_chemical': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW'
+            'misting': 'SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS',
+            'dust_storm': 'HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS & SUPPRESS DUST SOURCE',
+            'smoke': 'HAZARDOUS: COMBUSTION RISK. EQUIP MASKS & SUSPEND HOT WORKS',
+            'co_spike': 'HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS',
+            'heat_stress_caution': 'CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS',
+            'heat_stress_hazard': 'HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS & REQUIRE HYDRATION',
+            'extreme_heat_hazard': 'HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST & MONITOR WORKERS',
+            'voc_chemical': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE'
         }
     }
 }
@@ -168,122 +169,122 @@ SENSOR_COMBINATION_REMARKS = {
     # CLASS 0 (SAFE) - 3 conditions
     'all_safe': {
         'class': 0,
-        'remark': 'SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS',
+        'remark': 'SAFE: AIR QUALITY OPTIMAL. CONTINUE OPERATIONS',
         'worker_action': 'Continue operations normally'
     },
     'high_humidity_safe': {
         'class': 0,
-        'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK',
+        'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS',
         'worker_action': 'Extreme PM with extreme humidity indicates mist; not a health hazard'
     },
     'elevated_humidity_safe': {
         'class': 0,
-        'remark': 'SAFE: ELEVATED HUMIDITY ONLY, CONTINUE TASKS WITH HYDRATION',
+        'remark': 'SAFE: ELEVATED HUMIDITY ONLY. CONTINUE OPERATIONS WITH HYDRATION',
         'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'
     },
     
     # CLASS 1 (CAUTION) - 8 combinations
     'single_pm25_caution': {
         'class': 1,
-        'remark': 'CAUTION: FINE DUST RISING, REDUCE DUST EXPOSURE NOW',
+        'remark': 'CAUTION: FINE DUST DETECTED. EQUIP N95 MASKS',
         'worker_action': 'Monitor air quality; reduce dust exposure; increase ventilation'
     },
     'single_pm10_caution': {
         'class': 1,
-        'remark': 'CAUTION: COARSE DUST RISING, IMPROVE VENTILATION NOW',
+        'remark': 'CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS & DAMPEN THE GROUND',
         'worker_action': 'Increase ventilation; monitor work pace; activate dust suppression'
     },
     'single_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: COMBUSTIBLE GAS DETECTED, CHECK SOURCES NOW',
+        'remark': 'CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE',
         'worker_action': 'Check for machinery exhaust/fire; increase ventilation'
     },
     'single_co_caution': {
         'class': 1,
-        'remark': 'CAUTION: CO LEVELS RISING, MOVE TO CLEANER AIR ZONE',
+        'remark': 'CAUTION: ELEVATED CO. EQUIP N95 MASKS & MONITOR EXPOSURE',
         'worker_action': 'Verify fire status; check generator/machinery exhaust'
     },
     'pm10_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: DUST AND GAS RISING, PREPARE RESPIRATORY PROTECTION',
+        'remark': 'CAUTION: DUST & SMOKE TRACES. EQUIP N95 MASKS',
         'worker_action': 'Increase monitoring; reduce work intensity; prepare PPE'
     },
     'pm10_co_caution': {
         'class': 1,
-        'remark': 'CAUTION: DUST AND CO RISING, START FIRE-SOURCE CHECK',
+        'remark': 'CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS & STANDBY',
         'worker_action': 'Investigate fire potential; increase ventilation; be ready to evacuate'
     },
     'multi_sensor_caution': {
         'class': 1,
-        'remark': 'CAUTION: MULTIPLE SENSORS RISING, ACTIVE PROTECTIVE PROTOCOL',
+        'remark': 'CAUTION: DECLINING AIR QUALITY. REQUIRE BASIC PPE',
         'worker_action': 'Initiate protective measures; reduce exertion; monitor closely'
     },
     'heat_stress_caution': {
         'class': 1,
-        'remark': 'CAUTION: ELEVATED HEAT, SLOW WORK AND HYDRATE',
+        'remark': 'CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS',
         'worker_action': 'Increase hydration frequency; reduce work intensity; take breaks'
     },
     
     # CLASS 2 (HAZARDOUS) - 11 combinations and single hazardous sensors
     'single_pm25_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: FINE DUST CRITICAL, STOP DUST-PRODUCING WORK NOW',
+        'remark': 'HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS & ACTIVATE WATER SPRAY',
         'worker_action': 'IMMEDIATE: Stop dust work, use HEPA/N95+ mask, move to ventilated area'
     },
     'single_pm10_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: COARSE DUST CRITICAL, ACTIVATE DUST SUPPRESSION NOW',
+        'remark': 'HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS & ACTIVATE WATER SPRAY',
         'worker_action': 'IMMEDIATE: Activate dust suppression (water spray), increase ventilation'
     },
     'single_gas_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: GAS LEAK DETECTED, STOP IGNITION ACTIVITIES NOW',
+        'remark': 'HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING & HOT WORKS',
         'worker_action': 'IMMEDIATE: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES'
     },
     'single_co_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: CO LEVELS CRITICAL, MOVE UPWIND IMMEDIATELY',
+        'remark': 'HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS',
         'worker_action': 'IMMEDIATE: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind'
     },
     'pm25_pm10_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY',
+        'remark': 'HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS & SUPPRESS DUST SOURCE',
         'worker_action': 'Wear N95/FFP2 mask immediately; reduce work pace'
     },
     'pm25_gas_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION',
+        'remark': 'HAZARDOUS: COMBUSTION RISK. EQUIP MASKS & SUSPEND HOT WORKS',
         'worker_action': 'Investigate fire source; increase ventilation; be ready to evacuate'
     },
     'pm25_co_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: HIGH DUST AND CO DETECTED, TREAT AS FIRE RISK NOW',
+        'remark': 'HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS & INSPECT FOR FIRE',
         'worker_action': 'Verify fire status; prepare evacuation routes; call emergency if needed'
     },
     'gas_co_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW',
+        'remark': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE',
         'worker_action': 'MANDATORY EVACUATION - hazmat situation; call emergency services'
     },
     'multi_sensor_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: MULTIPLE SENSORS CRITICAL, EXECUTE FULL EMERGENCY PROTOCOL',
+        'remark': 'HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE & SECURE ZONE',
         'worker_action': 'MANDATORY PROTECTIVE ACTION - Mask/Ventilate/Evacuate per hierarchy'
     },
     'heat_stress_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: HIGH WET-BULB TEMP, STOP NON-ESSENTIAL PHYSICAL WORK',
+        'remark': 'HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS & REQUIRE HYDRATION',
         'worker_action': 'MANDATORY BREAK - cease non-essential work; hydrate; cool down'
     },
     'extreme_heat_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: EXTREME HEAT DETECTED, EVACUATE TO COOLING AREA NOW',
+        'remark': 'HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST & MONITOR WORKERS',
         'worker_action': 'IMMEDIATE EVACUATION - move to cool environment; emergency medical standby'
     },
     # Fallback for any hazardous (catches single hazardous sensors not specifically matched)
     'any_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: ANOMALY DETECTED, PAUSE OPERATIONS UNTIL STABLE',
+        'remark': 'HAZARDOUS: ANOMALY DETECTED. PAUSE OPERATIONS UNTIL STABLE',
         'worker_action': 'Stop operations; investigate; resume only when safe'
     }
 }

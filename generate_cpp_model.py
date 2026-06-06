@@ -59,12 +59,12 @@ def main():
     with open('models/scaler.pkl', 'rb') as f:
         scaler = pickle.load(f)
     
-    print(f"✓ Model loaded: {model.n_estimators} trees, {model.n_features_in_} features, {model.n_classes_} classes")
-    print(f"✓ Scaler loaded: StandardScaler")
+    print(f"[OK] Model loaded: {model.n_estimators} trees, {model.n_features_in_} features, {model.n_classes_} classes")
+    print(f"[OK] Scaler loaded: StandardScaler")
     
     # Feature names
     feature_names = list(model.feature_names_in_) if hasattr(model, 'feature_names_in_') else [f"feature_{i}" for i in range(model.n_features_in_)]
-    print(f"✓ Features: {feature_names}")
+    print(f"[OK] Features: {feature_names}")
     
     # Get scaler parameters
     scaler_mean = scaler.mean_
@@ -142,7 +142,7 @@ void normalize_features(float* features) {
         if i % 10 == 0:
             print(f"  Tree {i}/{model.n_estimators}...", end='\r')
         cpp_code += generate_tree_cpp(tree, i, feature_names)
-    print(f"  Tree {model.n_estimators}/{model.n_estimators}... ✓")
+    print(f"  Tree {model.n_estimators}/{model.n_estimators}... [DONE]")
     
     # Add ensemble prediction function
     cpp_code += """
@@ -237,7 +237,7 @@ float get_confidence(float features[NUM_FEATURES]) {
         f.write(cpp_code)
     
     file_size = len(cpp_code) / 1024  # in KB
-    print(f"\n✓ C++ model generated successfully!")
+    print(f"\n[SUCCESS] C++ model generated successfully!")
     print(f"  File: {output_file}")
     print(f"  Size: {file_size:.1f} KB")
     print(f"  Trees: {model.n_estimators}")

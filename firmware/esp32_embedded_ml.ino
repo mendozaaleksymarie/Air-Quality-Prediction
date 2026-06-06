@@ -462,81 +462,81 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
     String status = "";
 
     if (Tw > 35.0) {
-        status = "HAZARDOUS: EXTREME HEAT DETECTED, EVACUATE TO COOLING AREA NOW";
+        status = "HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST & MONITOR WORKERS";
     }
     else if (cls == 2) {
         if (Tw > 30.0) {
-            status = "HAZARDOUS: HIGH WET-BULB TEMP, STOP NON-ESSENTIAL PHYSICAL WORK";
+            status = "HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS & REQUIRE HYDRATION";
         }
         else if (hazardCount >= 3) {
-            status = "HAZARDOUS: MULTIPLE SENSORS CRITICAL, EXECUTE FULL EMERGENCY PROTOCOL";
+            status = "HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE & SECURE ZONE";
         }
         else if (isGasHaz && isCoHaz) {
-            status = "HAZARDOUS: TOXIC GAS AND CO CRITICAL, EVACUATE AFFECTED ZONE NOW";
+            status = "HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE";
         }
         else if (isPm25Haz && isCoHaz) {
-            status = "HAZARDOUS: HIGH DUST AND CO DETECTED, TREAT AS FIRE RISK NOW";
+            status = "HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS & INSPECT FOR FIRE";
         }
         else if (isPm25Haz && isGasHaz) {
-            status = "HAZARDOUS: DUST AND COMBUSTIBLE GAS CRITICAL, PREPARE EVACUATION";
+            status = "HAZARDOUS: COMBUSTION RISK. EQUIP MASKS & SUSPEND HOT WORKS";
         }
         else if (isPm25Haz && isPm10Haz) {
-            status = "HAZARDOUS: EXTREME PM LEVELS, ENFORCE RESPIRATORS IMMEDIATELY";
+            status = "HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS & SUPPRESS DUST SOURCE";
         }
         else if (isCoHaz) {
-            status = "HAZARDOUS: CO LEVELS CRITICAL, MOVE UPWIND IMMEDIATELY";
+            status = "HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS";
         }
         else if (isGasHaz) {
-            status = "HAZARDOUS: GAS LEAK DETECTED, STOP IGNITION ACTIVITIES NOW";
+            status = "HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING & HOT WORKS";
         }
         else if (isPm10Haz) {
-            status = "HAZARDOUS: COARSE DUST CRITICAL, ACTIVATE DUST SUPPRESSION NOW";
+            status = "HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS & ACTIVATE WATER SPRAY";
         }
         else if (isPm25Haz) {
-            status = "HAZARDOUS: FINE DUST CRITICAL, STOP DUST-PRODUCING WORK NOW";
+            status = "HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS & ACTIVATE WATER SPRAY";
         }
         else {
-            status = "HAZARDOUS: ANOMALY DETECTED, PAUSE OPERATIONS UNTIL STABLE";
+            status = "HAZARDOUS: ANOMALY DETECTED. PAUSE OPERATIONS UNTIL STABLE";
         }
     }
     else if (cls == 1) {
         if (Tw >= 27.0 && Tw <= 30.0 && cautionCount == 0) {
-            status = "CAUTION: ELEVATED HEAT, SLOW WORK AND HYDRATE";
+            status = "CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS";
         }
         else if (cautionCount >= 3) {
-            status = "CAUTION: MULTIPLE SENSORS RISING, ACTIVE PROTECTIVE PROTOCOL";
+            status = "CAUTION: DECLINING AIR QUALITY. REQUIRE BASIC PPE";
         }
         else if (isPm10Cau && isCoCau) {
-            status = "CAUTION: DUST AND CO RISING, START FIRE-SOURCE CHECK";
+            status = "CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS & STANDBY";
         }
         else if (isPm10Cau && isGasCau) {
-            status = "CAUTION: DUST AND GAS RISING, PREPARE RESPIRATORY PROTECTION";
+            status = "CAUTION: DUST & SMOKE TRACES. EQUIP N95 MASKS";
         }
         else if (isCoCau) {
-            status = "CAUTION: CO LEVELS RISING, MOVE TO CLEANER AIR ZONE";
+            status = "CAUTION: ELEVATED CO. EQUIP N95 MASKS & MONITOR EXPOSURE";
         }
         else if (isGasCau) {
-            status = "CAUTION: COMBUSTIBLE GAS DETECTED, CHECK SOURCES NOW";
+            status = "CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE";
         }
         else if (isPm10Cau) {
-            status = "CAUTION: COARSE DUST RISING, IMPROVE VENTILATION NOW";
+            status = "CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS & DAMPEN THE GROUND";
         }
         else if (isPm25Cau) {
-            status = "CAUTION: FINE DUST RISING, REDUCE DUST EXPOSURE NOW";
+            status = "CAUTION: FINE DUST DETECTED. EQUIP N95 MASKS";
         }
         else {
-            status = "CAUTION: AIR QUALITY DEGRADING, APPLY PPE AND REASSESS";
+            status = "CAUTION: DECLINING AIR QUALITY. REQUIRE BASIC PPE";
         }
     }
     else {
         if (hum >= 95.0 && gas <= 40.0) {
-            status = "SAFE: HIGH HUMIDITY MIST DETECTED, CONTINUE WORK";
+            status = "SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS";
         }
         else if (hum > 70.0) {
-            status = "SAFE: ELEVATED HUMIDITY ONLY, CONTINUE TASKS WITH HYDRATION";
+            status = "SAFE: ELEVATED HUMIDITY ONLY. CONTINUE OPERATIONS WITH HYDRATION";
         }
         else {
-            status = "SAFE: ALL SENSORS NORMAL, CONTINUE OPERATIONS";
+            status = "SAFE: AIR QUALITY OPTIMAL. CONTINUE OPERATIONS";
         }
     }
 
