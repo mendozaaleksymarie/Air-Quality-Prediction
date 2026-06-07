@@ -8,8 +8,8 @@ pm25_hazard = 100
 pm25_caution = 51
 pm10_hazard = 230
 pm10_caution = 151
-mqgas_hazard = 63
-mqgas_caution = 40
+mqgas_hazard = 2000
+mqgas_caution = 1000
 mqco_hazard = 30
 mqco_caution = 10
 

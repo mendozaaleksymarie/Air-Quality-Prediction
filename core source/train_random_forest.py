@@ -1108,9 +1108,9 @@ def apply_multi_sensor_escalation(row):
     pm10_caution_threshold = 151      # Caution range: 151-230
     pm10_hazardous_threshold = 231    # Hazardous: > 230
     
-    # MQ-2 Gas thresholds (ppm)
-    gas_caution_threshold = 40        # Caution range: 40-63
-    gas_hazardous_threshold = 63      # Hazardous: ≥ 63
+    # MQ-2 Gas thresholds (ppm) — DOLE OSHS Rule 1070
+    gas_caution_threshold = 1000      # Caution range: 1,000-2,000 ppm (at or exceeding TLV)
+    gas_hazardous_threshold = 2000    # Hazardous: > 2,000 ppm (IDLH)
     
     # MQ-7 CO thresholds (ppm)
     co_caution_threshold = 10         # Caution range: 10-30

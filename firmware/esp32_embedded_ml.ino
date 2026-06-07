@@ -255,13 +255,13 @@ void buildFullFeatureArray(float input[35], float pm25, float pm10, float t, flo
     // Anomaly flags (features 27-30) - extreme value detection
     input[27] = (pm25 > 100.0f) ? 1.0f : 0.0f;  // High PM2.5 flag
     input[28] = (c > 30.0f) ? 1.0f : 0.0f;  // High CO flag
-    input[29] = (g > 63.0f) ? 1.0f : 0.0f;  // High Gas flag
+    input[29] = (g > 2000.0f) ? 1.0f : 0.0f;  // High Gas flag (DOLE Hazardous > 2000 ppm)
     input[30] = (t > 35.0f) ? 1.0f : 0.0f;  // High temp flag
     
     // Multi-sensor correlation flags (features 31-34)
     input[31] = ((pm25 > 50.0f) && (c > 9.0f)) ? 1.0f : 0.0f;  // PM+CO both high
-    input[32] = ((g > 40.0f) && (c > 9.0f)) ? 1.0f : 0.0f;  // Gas+CO both high
-    input[33] = (pm25 > 50.0f) && (g > 40.0f) ? 1.0f : 0.0f;  // PM+Gas both high
+    input[32] = ((g > 1000.0f) && (c > 9.0f)) ? 1.0f : 0.0f;  // Gas+CO both high (DOLE Caution gas >= 1000 ppm)
+    input[33] = (pm25 > 50.0f) && (g > 1000.0f) ? 1.0f : 0.0f;  // PM+Gas both high (DOLE Caution gas >= 1000 ppm)
     input[34] = (wb > 30.0f) && (c > 9.0f) ? 1.0f : 0.0f;  // Heat+CO both high
 }
 
@@ -427,19 +427,19 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
     // Step 2: Evaluate Sensor Thresholds (RA 8749 IRR Standards)
     bool isPm25Haz = (pm25 > 100.0);        // PM2.5 > 100 μg/m³
     bool isPm10Haz = (pm10 > 230.0);        // PM10 > 230 μg/m³
-    bool isGasHaz = (gas >= 63.0);          // Gas ≥ 63 ppm
+    bool isGasHaz = (gas > 2000.0);         // Gas > 2,000 ppm (DOLE OSHS Rule 1070 - Hazardous)
     bool isCoHaz = (co > 30.0);             // CO > 30 ppm
 
     bool isPm25Cau = (pm25 >= 51.0);        // PM2.5 51-100 μg/m³
     bool isPm10Cau = (pm10 >= 151.0);       // PM10 151-230 μg/m³
-    bool isGasCau = (gas >= 40.0);          // Gas 40-62 ppm
+    bool isGasCau = (gas >= 1000.0);        // Gas 1,000-2,000 ppm (DOLE OSHS Rule 1070 - Caution)
     bool isCoCau = (co > 9.0 && co <= 30.0); // CO 10-30 ppm
 
     int cautionCount = isPm25Cau + isPm10Cau + isGasCau + isCoCau;
     int hazardCount = isPm25Haz + isPm10Haz + isGasHaz + isCoHaz;
 
     // Step 3: Apply Decision Rules from MILES COMPLETE DECISION TABLE
-    if (hum >= 95.0 && gas <= 40.0 && Tw <= 35.0) {
+    if (hum >= 95.0 && gas <= 1000.0 && Tw <= 35.0) {
         cls = 0;  // MISTING OVERRIDE
     }
     else if (Tw > 35.0) {
@@ -529,7 +529,7 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
         }
     }
     else {
-        if (hum >= 95.0 && gas <= 40.0) {
+        if (hum >= 95.0 && gas <= 1000.0) {
             status = "SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS";
         }
         else if (hum > 70.0) {
