@@ -72,14 +72,20 @@ const unsigned long WARMUP_MS = 120000;
 #define MQ7_VIN 3.3                   // Reference voltage
 #define MQ7_ADC_MAX 4095.0            // 12-bit ADC resolution
 #define MQ7_RL 10000.0                // Load resistance (ohms)
-#define MQ7_RO 1822.0                 // Clean air resistance (ohms)
+#define MQ7_RO 0.3146                 // Clean air resistance (ohms)
 #define MQ7_COEFF 99.042              // Calibration coefficient
 #define MQ7_EXPONENT -1.518           // Calibration exponent
 
-#define RL_VALUE 10.0
-#define RO_CLEAN_AIR_FACTOR 9.83
+// MQ2 (LPG) Sensor - New LPG Detection Formula (v3.1)
+#define MQ2_VIN 3.3                   // Reference voltage
+#define MQ2_ADC_MAX 4095.0            // 12-bit ADC resolution
+#define MQ2_RL 5.0                    // Load resistance (kΩ)
+#define RL_VALUE 5.0                  // Load resistance (for legacy compatibility)
+#define RO_CLEAN_AIR_FACTOR 9.83      // MQ2 clean-air ratio constant
 #define ADC_MAX 4095.0
-float SmokeCurve[3] = { 2.3, 0.53, -0.44 };
+#define LPG_COEFF 574.25              // LPG curve-fit coefficient
+#define LPG_EXPONENT -2.222           // LPG curve-fit exponent
+float SmokeCurve[3] = { 2.3, 0.53, -0.44 }; // Legacy (deprecated)
 float Ro = 0.0;
 
 struct PendingReading {
@@ -472,7 +478,7 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
             status = "HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE & SECURE ZONE";
         }
         else if (isGasHaz && isCoHaz) {
-            status = "HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE";
+            status = "HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS & CLEAR THE ZONE";
         }
         else if (isPm25Haz && isCoHaz) {
             status = "HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS & INSPECT FOR FIRE";
@@ -487,7 +493,7 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
             status = "HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS";
         }
         else if (isGasHaz) {
-            status = "HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING & HOT WORKS";
+            status = "HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING & HOT WORKS";
         }
         else if (isPm10Haz) {
             status = "HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS & ACTIVATE WATER SPRAY";
@@ -510,13 +516,13 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
             status = "CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS & STANDBY";
         }
         else if (isPm10Cau && isGasCau) {
-            status = "CAUTION: DUST & SMOKE TRACES. EQUIP N95 MASKS";
+            status = "CAUTION: DUST & GAS TRACES. EQUIP N95 MASKS";
         }
         else if (isCoCau) {
             status = "CAUTION: ELEVATED CO. EQUIP N95 MASKS & MONITOR EXPOSURE";
         }
         else if (isGasCau) {
-            status = "CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE";
+            status = "CAUTION: TRACE GAS DETECTED. CHECK THE SOURCE";
         }
         else if (isPm10Cau) {
             status = "CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS & DAMPEN THE GROUND";
@@ -544,6 +550,18 @@ void processDecisions(int cls, float pm25, float pm10, float co, float gas, floa
     blynkFullRemark = "REMARKS: " + status;
 }
 
+// ADC to Voltage conversion (Step 1)
+float MQADCToVoltage(int raw_adc) {
+    return raw_adc * (MQ2_VIN / MQ2_ADC_MAX);
+}
+
+// Voltage to Sensor Resistance conversion (Step 2)
+float MQVoltageToRs(float voltage) {
+    if (voltage <= 0) voltage = 0.001;
+    return ((MQ2_VIN - voltage) / voltage) * MQ2_RL;
+}
+
+// Legacy resistance calculation (deprecated, kept for compatibility)
 float MQResistanceCalculation(int raw_adc) {
     if (raw_adc <= 0) raw_adc = 1;
     if (raw_adc >= ADC_MAX) raw_adc = ADC_MAX - 1;
@@ -561,16 +579,33 @@ float MQCalibration(int mq_pin) {
     return val;
 }
 
+// New LPG PPM calculation (Step 4)
+float MQGetLPGPpm(float ratio) {
+    return LPG_COEFF * pow(ratio, LPG_EXPONENT);
+}
+
+// Full MQ2 conversion pipeline: ADC -> Voltage -> Rs -> ratio -> LPG PPM
 float MQRead(int mq_pin) {
     float rs = 0;
     for (int i = 0; i < 5; i++) {
-        rs += MQResistanceCalculation(analogRead(mq_pin));
+        int raw_adc = analogRead(mq_pin);
+        float voltage = MQADCToVoltage(raw_adc);  // Step 1: ADC to Voltage
+        float sensor_rs = MQVoltageToRs(voltage); // Step 2: Voltage to Rs
+        rs += sensor_rs;
         delay(50);
     }
-    rs /= 5;
+    rs /= 5; // Average Rs over 5 readings
     return rs;
 }
 
+// Calculate Rs/R0 ratio and convert to PPM
+float MQGetLPGPpmFromRs(float rs, float ro) {
+    if (ro <= 0) ro = 0.1;
+    float ratio = rs / ro;  // Step 3: Calculate ratio
+    return MQGetLPGPpm(ratio); // Step 4: Convert ratio to LPG PPM
+}
+
+// Legacy smoke PPM calculation (deprecated)
 float MQGetSmokePpm(float rs_ro_ratio) {
     return pow(10.0, ((log10(rs_ro_ratio) - SmokeCurve[1]) / SmokeCurve[2]) + SmokeCurve[0]);
 }
@@ -774,8 +809,7 @@ void loop() {
         data.temp = dht.readTemperature();
         data.hum = dht.readHumidity();
         float rs = MQRead(MQ2_PIN);
-        float rs_ro_ratio = rs / Ro;
-        data.gas = MQGetSmokePpm(rs_ro_ratio);
+        data.gas = MQGetLPGPpmFromRs(rs, Ro);  // New LPG formula
         
         // MQ7 (CO) Conversion - Exponential Calibration (v3.0)
         // Step 1: Vout = MQ7_ADC × (3.3 / 4095)
@@ -851,7 +885,7 @@ void loop() {
 
         lcd.setCursor(0, 0); lcd.print("P2.5:"); lcd.print((int)data.pm2_5); lcd.print("  ");
         lcd.setCursor(11, 0); lcd.print("P10:"); lcd.print((int)data.pm10); lcd.print("  ");
-        lcd.setCursor(0, 1); lcd.print("SMK:"); lcd.print((int)data.gas); lcd.print("  ");
+        lcd.setCursor(0, 1); lcd.print("GAS:"); lcd.print((int)data.gas); lcd.print("  ");
         lcd.setCursor(11, 1); lcd.print("CO :"); lcd.print((int)data.co); lcd.print("  ");
         lcd.setCursor(0, 2); lcd.print("T:"); lcd.print(data.temp, 1); lcd.print("C ");
         lcd.setCursor(11, 2); lcd.print("H:"); lcd.print(data.hum, 0); lcd.print("% ");

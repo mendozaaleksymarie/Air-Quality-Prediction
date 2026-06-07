@@ -96,7 +96,7 @@ SCALER_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'scal
 VIN = 3.3
 ADC_MAX = 4095
 RL = 10000
-RO = 1822  # Clean air resistance in ohms (UPDATED from 2120)
+RO = 0.3146  # Clean air resistance in ohms (UPDATED from 1822)
 COEFF = 99.042
 EXPONENT = -1.518
 
@@ -138,7 +138,7 @@ SCENARIO_REMARKS = {
     3: {'name': 'MISTING', 'class': 0, 'remark': 'SAFE: HIGH HUMIDITY MIST DETECTED. CONTINUE OPERATIONS', 'worker_action': 'Extreme PM with extreme humidity indicates mist; water spray is not a health hazard'},
     4: {'name': 'FIRE', 'class': 2, 'remark': 'HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE & SECURE ZONE', 'worker_action': 'IMMEDIATE EVACUATION - FIRE DETECTED'},
     5: {'name': 'COMBUSTION', 'class': 2, 'remark': 'HAZARDOUS: COMBUSTION RISK. EQUIP MASKS & SUSPEND HOT WORKS', 'worker_action': 'Verify fire/smoke; increase ventilation; prepare evacuation'},
-    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
+    6: {'name': 'VOC/CHEMICAL', 'class': 2, 'remark': 'HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS & CLEAR THE ZONE', 'worker_action': 'Improve ventilation immediately; wear respirator; check chemical sources'},
     7: {'name': 'HIGH HUMIDITY', 'class': 0, 'remark': 'SAFE: ELEVATED HUMIDITY ONLY. CONTINUE OPERATIONS WITH HYDRATION', 'worker_action': 'Normal operations; elevated humidity context recognized; increase hydration'},
     8: {
         'name': 'FIELD DEPLOYMENT',
@@ -155,7 +155,7 @@ SCENARIO_REMARKS = {
             'heat_stress_caution': 'CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS',
             'heat_stress_hazard': 'HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS & REQUIRE HYDRATION',
             'extreme_heat_hazard': 'HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST & MONITOR WORKERS',
-            'voc_chemical': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE'
+            'voc_chemical': 'HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS & CLEAR THE ZONE'
         }
     }
 }
@@ -196,7 +196,7 @@ SENSOR_COMBINATION_REMARKS = {
     },
     'single_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE',
+        'remark': 'CAUTION: TRACE GAS DETECTED. CHECK THE SOURCE',
         'worker_action': 'Check for machinery exhaust/fire; increase ventilation'
     },
     'single_co_caution': {
@@ -206,7 +206,7 @@ SENSOR_COMBINATION_REMARKS = {
     },
     'pm10_gas_caution': {
         'class': 1,
-        'remark': 'CAUTION: DUST & SMOKE TRACES. EQUIP N95 MASKS',
+        'remark': 'CAUTION: DUST & GAS TRACES. EQUIP N95 MASKS',
         'worker_action': 'Increase monitoring; reduce work intensity; prepare PPE'
     },
     'pm10_co_caution': {
@@ -238,7 +238,7 @@ SENSOR_COMBINATION_REMARKS = {
     },
     'single_gas_hazardous': {
         'class': 2,
-        'remark': 'HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING & HOT WORKS',
+        'remark': 'HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING & HOT WORKS',
         'worker_action': 'IMMEDIATE: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES'
     },
     'single_co_hazardous': {
@@ -263,7 +263,7 @@ SENSOR_COMBINATION_REMARKS = {
     },
     'gas_co_hazard': {
         'class': 2,
-        'remark': 'HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS & CLEAR THE ZONE',
+        'remark': 'HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS & CLEAR THE ZONE',
         'worker_action': 'MANDATORY EVACUATION - hazmat situation; call emergency services'
     },
     'multi_sensor_hazard': {
