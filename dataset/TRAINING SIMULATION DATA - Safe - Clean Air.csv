@@ -1,4 +1,4 @@
-Timestamp,PM25,PM10,MQ2_PPM,MQ7_PPM,Temp,Hum,Status
+Timestamp,PM25,PM10,Gas,CO,Temp,Hum,Status
 2026-03-25 00:00:00 UTC,7,11,21.66,6.66,30.4,56.1,Safe (Clean Air)
 2026-03-25 00:00:10 UTC,4,11,24.23,7.09,30.4,56.1,Safe (Clean Air)
 2026-03-25 00:00:20 UTC,9,7,21.81,6.79,30.3,55.9,Safe (Clean Air)

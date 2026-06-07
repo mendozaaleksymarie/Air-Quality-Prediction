@@ -1,4 +1,4 @@
-Timestamp,PM25,PM10,MQ2_PPM,MQ7_PPM,Temp,Hum,Status
+Timestamp,PM25,PM10,Gas,CO,Temp,Hum,Status
 2026-03-24 06:00:00 UTC,1449,2129,49.2,7.47,40.2,45.0,Hazardous (Fire Detected — Evacuate)
 2026-03-24 06:00:10 UTC,828,1027,36.06,7.09,38.7,43.2,Hazardous (Fire Detected — Evacuate)
 2026-03-24 06:00:20 UTC,851,1077,47.15,7.35,39.8,30.9,Hazardous (Fire Detected — Evacuate)

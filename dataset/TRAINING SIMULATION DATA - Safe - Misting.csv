@@ -1,4 +1,4 @@
-Timestamp,PM25,PM10,MQ2_PPM,MQ7_PPM,Temp,Hum,Status
+Timestamp,PM25,PM10,Gas,CO,Temp,Hum,Status
 2026-03-21 02:00:00 UTC,536,607,29.64,7.89,23.7,97.8,Safe (Misting Detected)
 2026-03-21 02:00:10 UTC,501,567,34.02,8.37,23.6,98.1,Safe (Misting Detected)
 2026-03-21 02:00:20 UTC,461,531,30.54,8.02,23.6,98.0,Safe (Misting Detected)

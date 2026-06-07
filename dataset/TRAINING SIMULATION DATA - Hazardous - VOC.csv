@@ -1,4 +1,4 @@
-Timestamp,PM25,PM10,MQ2_PPM,MQ7_PPM,Temp,Hum,Status
+Timestamp,PM25,PM10,Gas,CO,Temp,Hum,Status
 2026-03-26 00:00:00 UTC,41,48,120.73,8.57,31.9,63.3,Hazardous (VOC - Wear Mask)
 2026-03-26 00:00:10 UTC,38,43,44.89,8.31,32.0,63.3,Hazardous (VOC - Wear Mask)
 2026-03-26 00:00:20 UTC,29,29,143.4,12.85,34.5,57.8,Hazardous (VOC - Wear Mask)
