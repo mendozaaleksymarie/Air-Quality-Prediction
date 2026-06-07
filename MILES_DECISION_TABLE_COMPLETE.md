@@ -43,9 +43,9 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |-|-|-|-|-|-|
 |**Single PM2.5 Elevated**|PM2.5: 51-100 μg/m³<br/>Other sensors normal|27-30°C|**CAUTION: FINE DUST DETECTED. EQUIP N95 MASKS**|Dust level rising but not critical; trending toward hazard|Monitor air quality; reduce dust exposure; increase ventilation|
 |**Single PM10 Elevated**|PM10: 151-230 μg/m³<br/>Other sensors normal|27-30°C|**CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS \& DAMPEN THE GROUND**|Coarse particles detected; ventilation recommended|Increase ventilation; monitor work pace; activate dust suppression|
-|**Single Gas Elevated**|Gas (MQ-2): 40-62 ppm<br/>Other sensors normal|27-30°C|**CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE**|Potential smoke/VOC at low levels; check for sources|Check for machinery exhaust/fire; increase ventilation|
+|**Single Gas Elevated**|Gas (MQ-2): 40-62 ppm<br/>Other sensors normal|27-30°C|**CAUTION: TRACE GAS DETECTED. CHECK THE SOURCE**|Potential smoke/VOC at low levels; check for sources|Check for machinery exhaust/fire; increase ventilation|
 |**Single CO Elevated**|CO (MQ-7): 10-30 ppm<br/>Other sensors normal|27-30°C|**CAUTION: ELEVATED CO. EQUIP N95 MASKS \& MONITOR EXPOSURE**|Carbon monoxide present; check for combustion sources|Verify fire status; check generator/machinery exhaust|
-|**PM10 + Gas (Combination)**|PM10: 151-230<br/>Gas: 40-62<br/>PM2.5: < 51|27-30°C|**CAUTION: DUST \& SMOKE TRACES. EQUIP N95 MASKS**|Multiple sensor categories triggered; risk escalating|Increase monitoring; reduce work intensity; prepare PPE|
+|**PM10 + Gas (Combination)**|PM10: 151-230<br/>Gas: 40-62<br/>PM2.5: < 51|27-30°C|**CAUTION: DUST \& GAS TRACES. EQUIP N95 MASKS**|Multiple sensor categories triggered; risk escalating|Increase monitoring; reduce work intensity; prepare PPE|
 |**PM10 + CO (Combination)**|PM10: 151-230<br/>CO: 10-30<br/>Others moderate|27-30°C|**CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS \& STANDBY**|Coarse particles + carbon monoxide suggests developing fire|Investigate fire potential; increase ventilation; be ready to evacuate|
 |**3+ Sensors in Caution Range**|Any 3+ sensors at caution level<br/>But none hazardous|Tw > 30°C (heat stress escal.)|**CAUTION: DECLINING AIR QUALITY. REQUIRE BASIC PPE**|Multiple systems showing stress; coordination effect dangerous|Initiate protective measures; reduce exertion; monitor closely|
 |**Heat Stress Escalation**|Sensors: Safe or low caution<br/>**Wet-Bulb: 27-30°C**|**27-30°C**|**CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS**|Heat stress from temperature + humidity climbing; body cooling stressed|Increase hydration frequency; reduce work intensity; take breaks|
@@ -53,7 +53,7 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |**Decision Rule**|**Trigger**|**Remark**|
 |-|-|-|
 |Single Caution Sensor|One sensor 51-100 (PM2.5), 151-230 (PM10), 40-62 (Gas), 10-30 (CO)|**CAUTION: \[SENSOR] ELEVATED**|
-|Dangerous Combination (Dust+Gas)|PM10 151-230 AND Gas 40-62 ppm|**CAUTION: DUST \& SMOKE TRACES. EQUIP N95 MASKS**|
+|Dangerous Combination (Dust+Gas)|PM10 151-230 AND Gas 40-62 ppm|**CAUTION: DUST \& GAS TRACES. EQUIP N95 MASKS**|
 |Dangerous Combination (Dust+CO)|PM10 151-230 AND CO 9-30 ppm|**CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS \& STANDBY**|
 |Three+ Caution Sensors|3+ sensors in caution ranges|**CAUTION: DECLINING AIR QUALITY. REQUIRE BASIC PPE**|
 |Heat Stress Escalation|Tw 27-30°C + any concern|**CAUTION: HIGH TEMPERATURE. REQUIRE HYDRATION BREAKS**|
@@ -66,16 +66,16 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |-|-|-|-|-|-|
 |**ANY SINGLE HAZARDOUS SENSOR**|**PM2.5 > 100**|Any|**HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|Particle level critical; immediate respiratory hazard|**IMMEDIATE**: Stop dust work, use HEPA/N95+ mask, move to ventilated area|
 ||**PM10 > 230**|Any|**HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|Coarse particle emergency; visibility/breathing compromised|**IMMEDIATE**: Activate dust suppression (water spray), increase ventilation|
-||**Gas ≥ 63 ppm**|Any|**HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|Combustible gas at critical level; fire/explosion risk|**IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES|
+||**Gas ≥ 63 ppm**|Any|**HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|Combustible gas at critical level; fire/explosion risk|**IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES|
 ||**CO > 30 ppm**|Any|**HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS**|Carbon monoxide critical; immediate poisoning risk|**IMMEDIATE**: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind|
 |**Scenario 2: Pure Dust**|PM2.5: 50-200<br/>PM10: 100-300<br/>Humidity: 36-51% (LOW)<br/>Gas: normal|Tw ≤ 26°C|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|High particles + low humidity = genuine dust/excavation hazard|Wear N95/FFP2 mask immediately; reduce work pace|
 |**Scenario 4: Fire**|PM2.5: Extreme<br/>Gas: High<br/>Temp: High<br/>**All spiking together**|Any|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|Multi-sensor fire signature detected; critical danger|**IMMEDIATE EVACUATION - FIRE DETECTED**|
 |**Scenario 5: Combustion**|PM2.5: Gradual rise<br/>Gas: Gradual rise<br/>Over 30-60 min pattern<br/>Temp: Slow increase|Tw ≤ 30°C|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|Sustained combustion pattern; developing fire risk|Verify fire/smoke; increase ventilation; prepare evacuation|
-|**Scenario 6: VOC/Chemical**|PM2.5: Moderate (22-339)<br/>Gas: HIGH (≥63)<br/>CO: Elevated<br/>PM10: Moderate|Tw ≤ 30°C|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High gas + CO regardless of visible PM = chemical/VOC hazard|Improve ventilation immediately; wear respirator; check chemical sources|
+|**Scenario 6: VOC/Chemical**|PM2.5: Moderate (22-339)<br/>Gas: HIGH (≥63)<br/>CO: Elevated<br/>PM10: Moderate|Tw ≤ 30°C|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High gas + CO regardless of visible PM = chemical/VOC hazard|Improve ventilation immediately; wear respirator; check chemical sources|
 |**PM2.5 + PM10 (Dust Storm)**|PM2.5: Caution+ (>51)<br/>PM10: Caution+ (>151)<br/>Humidity: < 95% (not misting)|Tw ≤ 30°C|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|Both particle sizes elevated simultaneously = genuine dust storm|Wear N95/FFP2; minimize outdoor exposure; shelter if possible|
 |**PM2.5 + Gas (Smoke Detected)**|PM2.5: Elevated (>51)<br/>Gas: Elevated (≥63)<br/>Temp: Normal/high|Tw ≤ 30°C|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|Particles + combustible gases = active combustion/smoke|Investigate fire source; increase ventilation; be ready to evacuate|
 |**PM2.5 + CO (Fire Hazard)**|PM2.5: Elevated (>51)<br/>CO: Elevated (>10)<br/>Temp: Rising|Tw ≤ 30°C|**HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE**|Particles + CO signature = fire risk; products of incomplete combustion|Verify fire status; prepare evacuation routes; call emergency if needed|
-|**Gas + CO (Chemical Vapors)**|Gas: Elevated (≥63)<br/>CO: Elevated (>10)<br/>PM sensors: Any level|Tw ≤ 30°C|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High combustible + CO = dangerous vapor/gas accumulation|**MANDATORY EVACUATION** - hazmat situation; call emergency services|
+|**Gas + CO (Chemical Vapors)**|Gas: Elevated (≥63)<br/>CO: Elevated (>10)<br/>PM sensors: Any level|Tw ≤ 30°C|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High combustible + CO = dangerous vapor/gas accumulation|**MANDATORY EVACUATION** - hazmat situation; call emergency services|
 |**3+ Sensors Triggered**|Any combination of 3+ sensors<br/>At caution or higher levels|Any|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|Multiple hazard dimensions present; coordinated danger|**MANDATORY PROTECTIVE ACTION** - Mask/Ventilate/Evacuate per hierarchy|
 |**Extreme Heat Stress**|All sensors normal or safe<br/>**Wet-Bulb: > 30°C**|**> 30°C**|**HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS \& REQUIRE HYDRATION**|Body cannot maintain safe core temperature; stop non-essential work|**MANDATORY BREAK** - cease non-essential work; hydrate; cool down|
 |**Critical Heat Stress**|Any condition present<br/>**Wet-Bulb: > 35°C**|**> 35°C**|**HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST \& MONITOR WORKERS**|Survivability limit reached; immediate life threat|**IMMEDIATE EVACUATION** - move to cool environment; emergency medical standby|
@@ -84,11 +84,11 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |-|-|-|-|
 |**CRITICAL: Single Hazardous PM2.5**|PM2.5 > 100|**HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|🔴 HIGHEST|
 |**CRITICAL: Single Hazardous PM10**|PM10 > 230|**HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|🔴 HIGHEST|
-|**CRITICAL: Single Hazardous Gas**|Gas ≥ 63|**HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|🔴 HIGHEST|
+|**CRITICAL: Single Hazardous Gas**|Gas ≥ 63|**HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|🔴 HIGHEST|
 |**CRITICAL: Single Hazardous CO**|CO > 30|**HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS**|🔴 HIGHEST|
 |Dangerous Combination (Smoke)|PM2.5 + Gas both elevated|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|🔴 CRITICAL|
 |Dangerous Combination (Fire)|PM2.5 + CO both elevated|**HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE**|🔴 CRITICAL|
-|Dangerous Combination (Vapors)|Gas + CO both elevated|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|🔴 CRITICAL|
+|Dangerous Combination (Vapors)|Gas + CO both elevated|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|🔴 CRITICAL|
 |Multi-Particle (Dust Storm)|PM2.5 + PM10 both elevated|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|🟠 HIGH|
 |Multi-Sensor Alert|3+ sensors at caution/hazardous|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|🟠 HIGH|
 |Extreme Heat Stress|Tw > 30°C|**HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS \& REQUIRE HYDRATION**|🟠 HIGH|
@@ -107,16 +107,16 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |-|-|-|-|-|-|
 |**ANY SINGLE HAZARDOUS SENSOR**|**PM2.5 > 100**|Any|**HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|Particle level critical; immediate respiratory hazard|**IMMEDIATE**: Stop dust work, use HEPA/N95+ mask, move to ventilated area|
 ||**PM10 > 230**|Any|**HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|Coarse particle emergency; visibility/breathing compromised|**IMMEDIATE**: Activate dust suppression (water spray), increase ventilation|
-||**Gas ≥ 63 ppm**|Any|**HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|Combustible gas at critical level; fire/explosion risk|**IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES|
+||**Gas ≥ 63 ppm**|Any|**HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|Combustible gas at critical level; fire/explosion risk|**IMMEDIATE**: Check for welding/cutting/leaks, STOP ALL IGNITION SOURCES|
 ||**CO > 30 ppm**|Any|**HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS**|Carbon monoxide critical; immediate poisoning risk|**IMMEDIATE**: Identify source (generator/exhaust), SHUT DOWN if safe, move upwind|
 |**Scenario 2: Pure Dust**|PM2.5: 50-200<br/>PM10: 100-300<br/>Humidity: 36-51% (LOW)<br/>Gas: normal|Tw ≤ 26°C|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|High particles + low humidity = genuine dust/excavation hazard|Wear N95/FFP2 mask immediately; reduce work pace|
 |**Scenario 4: Fire**|PM2.5: Extreme<br/>Gas: High<br/>Temp: High<br/>**All spiking together**|Any|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|Multi-sensor fire signature detected; critical danger|**IMMEDIATE EVACUATION - FIRE DETECTED**|
 |**Scenario 5: Combustion**|PM2.5: Gradual rise<br/>Gas: Gradual rise<br/>Over 30-60 min pattern<br/>Temp: Slow increase|Tw ≤ 30°C|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|Sustained combustion pattern; developing fire risk|Verify fire/smoke; increase ventilation; prepare evacuation|
-|**Scenario 6: VOC/Chemical**|PM2.5: Moderate (22-339)<br/>Gas: HIGH (≥63)<br/>CO: Elevated<br/>PM10: Moderate|Tw ≤ 30°C|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High gas + CO regardless of visible PM = chemical/VOC hazard|Improve ventilation immediately; wear respirator; check chemical sources|
+|**Scenario 6: VOC/Chemical**|PM2.5: Moderate (22-339)<br/>Gas: HIGH (≥63)<br/>CO: Elevated<br/>PM10: Moderate|Tw ≤ 30°C|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High gas + CO regardless of visible PM = chemical/VOC hazard|Improve ventilation immediately; wear respirator; check chemical sources|
 |**PM2.5 + PM10 (Dust Storm)**|PM2.5: Caution+ (>51)<br/>PM10: Caution+ (>151)<br/>Humidity: < 95% (not misting)|Tw ≤ 30°C|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|Both particle sizes elevated simultaneously = genuine dust storm|Wear N95/FFP2; minimize outdoor exposure; shelter if possible|
 |**PM2.5 + Gas (Smoke Detected)**|PM2.5: Elevated (>51)<br/>Gas: Elevated (≥63)<br/>Temp: Normal/high|Tw ≤ 30°C|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|Particles + combustible gases = active combustion/smoke|Investigate fire source; increase ventilation; be ready to evacuate|
 |**PM2.5 + CO (Fire Hazard)**|PM2.5: Elevated (>51)<br/>CO: Elevated (>10)<br/>Temp: Rising|Tw ≤ 30°C|**HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE**|Particles + CO signature = fire risk; products of incomplete combustion|Verify fire status; prepare evacuation routes; call emergency if needed|
-|**Gas + CO (Chemical Vapors)**|Gas: Elevated (≥63)<br/>CO: Elevated (>10)<br/>PM sensors: Any level|Tw ≤ 30°C|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High combustible + CO = dangerous vapor/gas accumulation|**MANDATORY EVACUATION** - hazmat situation; call emergency services|
+|**Gas + CO (Chemical Vapors)**|Gas: Elevated (≥63)<br/>CO: Elevated (>10)<br/>PM sensors: Any level|Tw ≤ 30°C|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|High combustible + CO = dangerous vapor/gas accumulation|**MANDATORY EVACUATION** - hazmat situation; call emergency services|
 |**3+ Sensors Triggered**|Any combination of 3+ sensors<br/>At caution or higher levels|Any|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|Multiple hazard dimensions present; coordinated danger|**MANDATORY PROTECTIVE ACTION** - Mask/Ventilate/Evacuate per hierarchy|
 |**Extreme Heat Stress**|All sensors normal or safe<br/>**Wet-Bulb: > 30°C**|**> 30°C**|**HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS \& REQUIRE HYDRATION**|Body cannot maintain safe core temperature; stop non-essential work|**MANDATORY BREAK** - cease non-essential work; hydrate; cool down|
 |**Critical Heat Stress**|Any condition present<br/>**Wet-Bulb: > 35°C**|**> 35°C**|**HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST \& MONITOR WORKERS**|Survivability limit reached; immediate life threat|**IMMEDIATE EVACUATION** - move to cool environment; emergency medical standby|
@@ -125,11 +125,11 @@ This ensures Field Deployment readings are fully integrated into the training pr
 |-|-|-|-|
 |**CRITICAL: Single Hazardous PM2.5**|PM2.5 > 100|**HAZARDOUS: HEAVY FINE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|🔴 HIGHEST|
 |**CRITICAL: Single Hazardous PM10**|PM10 > 230|**HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY**|🔴 HIGHEST|
-|**CRITICAL: Single Hazardous Gas**|Gas ≥ 63|**HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|🔴 HIGHEST|
+|**CRITICAL: Single Hazardous Gas**|Gas ≥ 63|**HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS**|🔴 HIGHEST|
 |**CRITICAL: Single Hazardous CO**|CO > 30|**HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS**|🔴 HIGHEST|
 |Dangerous Combination (Smoke)|PM2.5 + Gas both elevated|**HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS**|🔴 CRITICAL|
 |Dangerous Combination (Fire)|PM2.5 + CO both elevated|**HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE**|🔴 CRITICAL|
-|Dangerous Combination (Vapors)|Gas + CO both elevated|**HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE**|🔴 CRITICAL|
+|Dangerous Combination (Vapors)|Gas + CO both elevated|**HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE**|🔴 CRITICAL|
 |Multi-Particle (Dust Storm)|PM2.5 + PM10 both elevated|**HAZARDOUS: SEVERE DUST. REQUIRE N95 MASKS \& SUPPRESS DUST SOURCE**|🟠 HIGH|
 |Multi-Sensor Alert|3+ sensors at caution/hazardous|**HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE**|🟠 HIGH|
 |Extreme Heat Stress|Tw > 30°C|**HAZARDOUS: HIGH HEAT INDEX. ROTATE WORKERS \& REQUIRE HYDRATION**|🟠 HIGH|
@@ -260,7 +260,7 @@ ELSE IF Count\_Hazard >= 3:
    status = "HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE"
    
 ELSE IF Gas\_Haz AND CO\_Haz:
-   status = "HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE"
+   status = "HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE"
    
 ELSE IF PM2.5\_Haz AND CO\_Haz:
    status = "HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE"
@@ -275,7 +275,7 @@ ELSE IF CO\_Haz:
    status = "HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS"
    
 ELSE IF Gas\_Haz:
-   status = "HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS"
+   status = "HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS"
    
 ELSE IF PM10\_Haz:
    status = "HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY"
@@ -300,13 +300,13 @@ ELSE IF PM10\_Cau AND CO\_Cau:
    status = "CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS \& STANDBY"
    
 ELSE IF PM10\_Cau AND Gas\_Cau:
-   status = "CAUTION: DUST \& SMOKE TRACES. EQUIP N95 MASKS"
+   status = "CAUTION: DUST \& GAS TRACES. EQUIP N95 MASKS"
    
 ELSE IF CO\_Cau:
    status = "CAUTION: ELEVATED CO. EQUIP N95 MASKS \& MONITOR EXPOSURE"
    
 ELSE IF Gas\_Cau:
-   status = "CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE"
+   status = "CAUTION: TRACE GAS DETECTED. CHECK THE SOURCE"
    
 ELSE IF PM10\_Cau:
    status = "CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS \& DAMPEN THE GROUND"
@@ -356,7 +356,7 @@ ELSE:
 |3: Misting ⭐|1,054|False alarm|Extreme PM + extreme humidity + normal gas|0|SAFE: HIGH HUMIDITY OR MIST. CONTINUE OPERATIONS|False alarm defense (critical!)|
 |4: Fire|700|Emergency|Multi-sensor spike (all sensors extreme)|2|HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE|Emergency pattern|
 |5: Combustion|996|Developing|Gradual rise (PM + Gas over 30-60 min)|2|HAZARDOUS: COMBUSTION RISK. EQUIP MASKS \& SUSPEND HOT WORKS|Trajectory recognition|
-|6: VOC|804|Chemical|High Gas + High CO regardless of PM|2|HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE|Invisible hazards|
+|6: VOC|804|Chemical|High Gas + High CO regardless of PM|2|HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE|Invisible hazards|
 |7: High Humidity|673|None|Normal PM/Gas + elevated humidity|0|SAFE: NORMAL CONDITIONS. MAINTAIN STANDARD HYDRATION|Humidity context|
 |→ Remark: "HAZARDOUS: EXTREME HEAT. REQUIRE SHADED REST \& MONITOR WORKERS"|||||||
 |→ STOP - Override all sensor logic|||||||
@@ -414,7 +414,7 @@ ELSE IF Count\_Hazard >= 3:
 status = "HAZARDOUS: TOXIC ATMOSPHERE. REQUIRE FULL PPE \& SECURE ZONE"
 
 ELSE IF Gas\_Haz AND CO\_Haz:
-status = "HAZARDOUS: POISONOUS SMOKE. EQUIP RESPIRATORS \& CLEAR THE ZONE"
+status = "HAZARDOUS: POISONOUS GAS. EQUIP RESPIRATORS \& CLEAR THE ZONE"
 
 ELSE IF PM2.5\_Haz AND CO\_Haz:
 status = "HAZARDOUS: FINE DUST + CO DETECTED. EQUIP MASKS \& INSPECT FOR FIRE"
@@ -429,7 +429,7 @@ ELSE IF CO\_Haz:
 status = "HAZARDOUS: CRITICAL CO LEVELS. EQUIP RESPIRATORS"
 
 ELSE IF Gas\_Haz:
-status = "HAZARDOUS: CRITICAL SMOKE LEVELS. SUSPEND ALL WELDING \& HOT WORKS"
+status = "HAZARDOUS: CRITICAL GAS LEVELS. SUSPEND ALL WELDING \& HOT WORKS"
 
 ELSE IF PM10\_Haz:
 status = "HAZARDOUS: HEAVY COARSE DUST. REQUIRE N95 MASKS \& ACTIVATE WATER SPRAY"
@@ -455,13 +455,13 @@ ELSE IF PM10\_Cau AND CO\_Cau:
 status = "CAUTION: FINE DUST + CO DETECTED. EQUIP MASKS \& STANDBY"
 
 ELSE IF PM10\_Cau AND Gas\_Cau:
-status = "CAUTION: DUST \& SMOKE TRACES. EQUIP N95 MASKS"
+status = "CAUTION: DUST \& GAS TRACES. EQUIP N95 MASKS"
 
 ELSE IF CO\_Cau:
 status = "CAUTION: ELEVATED CO. EQUIP N95 MASKS \& MONITOR EXPOSURE"
 
 ELSE IF Gas\_Cau:
-status = "CAUTION: TRACE SMOKE DETECTED. CHECK THE SOURCE"
+status = "CAUTION: TRACE GAS DETECTED. CHECK THE SOURCE"
 
 ELSE IF PM10\_Cau:
 status = "CAUTION: HIGH DUST LEVELS. EQUIP N95 MASKS \& DAMPEN THE GROUND"
