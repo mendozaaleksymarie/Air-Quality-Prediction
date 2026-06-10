@@ -40,9 +40,9 @@ def generate_model_h(model, scaler):
     
     # Build the model.h content
     header = f'''/*
- * ════════════════════════════════════════════════════════════════════════
+ * ========================================================================
  * RANDOM FOREST MODEL - C++ EMBEDDED VERSION FOR ESP32 (MILES)
- * ════════════════════════════════════════════════════════════════════════
+ * ========================================================================
  * 
  * GENERATED: May 29, 2026 - Updated with Enhanced Decision Table Remarks
  * Model Type: Random Forest Classifier with CO Recalibration (RO=1822)
@@ -63,7 +63,7 @@ def generate_model_h(model, scaler):
  *   normalize_features(features);
  *   int prediction = predict(features);  // Returns 0, 1, or 2
  * 
- * ════════════════════════════════════════════════════════════════════════
+ * ========================================================================
  */
 
 #ifndef MODEL_H
@@ -72,10 +72,10 @@ def generate_model_h(model, scaler):
 #include <cmath>
 #include <algorithm>
 
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 // SCALER PARAMETERS (StandardScaler from training May 29, 2026)
 // Used to normalize features before prediction
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 const float SCALER_MEAN[] = {{
 '''
@@ -100,9 +100,9 @@ const int NUM_CLASSES = {num_classes};
 const int NUM_TREES = {num_trees};
 const float MODEL_ACCURACY = 0.999800f;  // Test set: 99.98%
 
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 // FEATURE PREPROCESSING (StandardScaler normalization)
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 void normalize_features(float* features) {{
     for (int i = 0; i < NUM_FEATURES; i++) {{
@@ -110,13 +110,13 @@ void normalize_features(float* features) {{
     }}
 }}
 
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 // RANDOM FOREST TREE PREDICTIONS (200 Trees)
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 // Tree structures generated from: random_forest_model.pkl
 // Each tree returns class prediction (0, 1, or 2)
 // Lines X-Y: Tree decision logic omitted (see comments below)
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 // NOTE: Full tree structures (~5MB for 200 trees in C++) are too large for embedded storage.
 // For real-time inference on ESP32, use one of these approaches:
@@ -128,9 +128,9 @@ void normalize_features(float* features) {{
 //   - Benefits: Full model, easy updates, off-device computation
 //
 // OPTION 2: Fallback Threshold Logic
-//   - If (PM2.5 > 100 OR PM10 > 230 OR Gas >= 63 OR CO > 30) → Class 2
-//   - If (PM2.5 >= 51 OR PM10 >= 151 OR Gas >= 40 OR CO >= 10) → Class 1
-//   - Else → Class 0 (apply misting override)
+//   - If (PM2.5 > 100 OR PM10 > 230 OR Gas >= 63 OR CO > 30) -> Class 2
+//   - If (PM2.5 >= 51 OR PM10 >= 151 OR Gas >= 40 OR CO >= 10) -> Class 1
+//   - Else -> Class 0 (apply misting override)
 //
 // OPTION 3: Tree Subset Embedding
 //   - Embed only top 50 trees (highest feature importance)
@@ -148,9 +148,9 @@ int predict_tree_0(const float* features) {{
 // Full tree definitions can be embedded but recommended use ml_inference_server.py
 // for deployed systems
 
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 // ENSEMBLE PREDICTION
-// ════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 int predict(float features[{num_features}]) {{
     // Normalize input features using scaler
@@ -179,7 +179,7 @@ def save_model_h(content, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(content)
-    print(f"✓ Generated: {output_path}")
+    print(f"[OK] Generated: {output_path}")
     print(f"  - File size: {len(content) / 1024:.1f} KB")
     print(f"  - Contains scaler parameters only (tree structures omitted - see comments)")
 
@@ -191,22 +191,22 @@ def main():
     
     print("[1/4] Loading trained model and scaler...")
     model, scaler = load_model_and_scaler()
-    print(f"✓ Model loaded: {model.n_estimators} trees, {scaler.n_features_in_} features")
-    print(f"✓ Scaler loaded: mean shape={scaler.mean_.shape}, scale shape={scaler.scale_.shape}")
+    print(f"[OK] Model loaded: {model.n_estimators} trees, {scaler.n_features_in_} features")
+    print(f"[OK] Scaler loaded: mean shape={scaler.mean_.shape}, scale shape={scaler.scale_.shape}")
     print()
     
     print("[2/4] Extracting model parameters...")
     num_features = scaler.n_features_in_
     num_classes = len(model.classes_)
     num_trees = model.n_estimators
-    print(f"✓ Features: {num_features}")
-    print(f"✓ Classes: {num_classes}")
-    print(f"✓ Trees: {num_trees}")
+    print(f"[OK] Features: {num_features}")
+    print(f"[OK] Classes: {num_classes}")
+    print(f"[OK] Trees: {num_trees}")
     print()
     
     print("[3/4] Generating C++ header content...")
     header_content = generate_model_h(model, scaler)
-    print(f"✓ Header generated ({len(header_content) / 1024:.1f} KB)")
+    print(f"[OK] Header generated ({len(header_content) / 1024:.1f} KB)")
     print()
     
     print("[4/4] Saving model.h...")
@@ -217,9 +217,9 @@ def main():
     print("=" * 80)
     print("DEPLOYMENT STATUS")
     print("=" * 80)
-    print(f"✓ Scaler parameters: Updated from new training (May 29, 2026)")
-    print(f"✓ Model accuracy: 99.88% on test set")
-    print(f"✓ Tree structures: {num_trees} trees (embedded deployment pending)")
+    print(f"[OK] Scaler parameters: Updated from new training (May 29, 2026)")
+    print(f"[OK] Model accuracy: 99.88% on test set")
+    print(f"[OK] Tree structures: {num_trees} trees (embedded deployment pending)")
     print()
     print("NEXT STEPS:")
     print("1. For embedded inference on ESP32:")

@@ -3,7 +3,7 @@ MILES SYSTEM: Machine Intelligence Learning ESP32 System
 Train Random Forest model for Air Quality prediction with 3-class labeling
 
 COMPREHENSIVE TRAINING PROTOCOL:
-═══════════════════════════════════════════════════════════════════════════════
+===============================================================================
 
 This script trains on 8 distinct scenarios defining sensor ground truth:
 
@@ -18,7 +18,7 @@ SCENARIO 2: PURE DUST (730 rows)
    Ground Truth: Dust hazard = HIGH PM + LOW humidity
    Output: 2 - HAZARDOUS
 
-SCENARIO 3: MISTING (1,054 rows) ⭐ CRITICAL FALSE-ALARM DEFENSE
+SCENARIO 3: MISTING (1,054 rows) [IMPORTANT] CRITICAL FALSE-ALARM DEFENSE
    Teaches: Water droplets are NOT real pollution (prevents alarm fatigue)
    Sensor Profile: EXTREME PM (355-816) + EXTREME humidity (96-100%) + normal gas
    Ground Truth: Misting = extreme PM + extreme humidity + normal gas
@@ -46,7 +46,7 @@ SCENARIO 6: VOC/CHEMICAL (804 rows)
 SCENARIO 7: HIGH HUMIDITY (673 rows)
    Teaches: Elevated humidity alone is NOT hazardous in tropical climate
    Sensor Profile: Normal pollutants + elevated humidity (60-77%)
-   Ground Truth: Humidity context = normal humidity OK, extreme (≥95%) = misting signal
+   Ground Truth: Humidity context = normal humidity OK, extreme (>=95%) = misting signal
    Output: 0 - SAFE (reinforces Scenario 3 misting differentiation)
 
 SCENARIO 8: FIELD DEPLOYMENT (14,989 rows)
@@ -56,7 +56,7 @@ SCENARIO 8: FIELD DEPLOYMENT (14,989 rows)
    Ground Truth: Model generalizes to unseen environments with 99.98% accuracy
 
 TOTAL TRAINING DATA: 20,568 rows
-═══════════════════════════════════════════════════════════════════════════════
+===============================================================================
 
 Enhanced with simulation training data, multi-sensor escalation rules, and misting detection
 Saves model for use in ML inference server (ESP32 MILES device)
@@ -79,7 +79,7 @@ try:
     SHAP_AVAILABLE = True
 except ImportError:
     SHAP_AVAILABLE = False
-    print("⚠ Warning: SHAP not installed. Explainability features disabled. Install with: pip install shap")
+    print("[WARNING] SHAP not installed. Explainability features disabled. Install with: pip install shap")
 from sklearn.covariance import EllipticEnvelope
 from scipy import stats
 
@@ -89,9 +89,9 @@ DATASET_DIR = os.path.join(os.path.dirname(__file__), '..', 'dataset')
 MODEL_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'random_forest_model.pkl')
 SCALER_SAVE_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'scaler.pkl')
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # MQ7 CO SENSOR CALIBRATION (Updated May 27, 2026)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # Conversion parameters for MQ7 ADC to PPM
 VIN = 3.3
 ADC_MAX = 4095
@@ -101,32 +101,32 @@ COEFF = 99.042
 EXPONENT = -1.518
 
 def convert_adc_to_ppm_co(adc_value):
-    """Convert MQ7_ADC to PPM using RO = 1822"""
+    """Convert MQ7_ADC to PPM using RO = 0.3146"""
     try:
         if pd.isna(adc_value) or adc_value < 0:
             return np.nan
         
-        # Step 1: Vout = MQ7_ADC × (3.3 / 4095)
+        # Step 1: Vout = MQ7_ADC x (3.3 / 4095)
         vout = adc_value * (VIN / ADC_MAX)
         
-        # Step 2: Rs = 10,000 × (3.3 - Vout) / Vout
+        # Step 2: Rs = 10,000 x (3.3 - Vout) / Vout
         if vout == 0 or vout >= VIN:
             return np.nan
         rs = RL * (VIN - vout) / vout
         
-        # Step 3: ratio = Rs / 1822
+        # Step 3: ratio = Rs / 0.3146
         ratio = rs / RO
         
-        # Step 4: MQ7_PPM = 99.042 × ratio^(-1.518)
+        # Step 4: MQ7_PPM = 99.042 x ratio^(-1.518)
         ppm = COEFF * pow(ratio, EXPONENT)
         
         return max(ppm, 0.0)  # Ensure non-negative
     except:
         return np.nan
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # TRAINING SIMULATION & FIELD DEPLOYMENT REMARKS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
 # =============================================================================
 # SCENARIO REMARKS - MILES COMPLETE DECISION TABLE (May 29, 2026 - Enhanced)
@@ -160,10 +160,10 @@ SCENARIO_REMARKS = {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SENSOR COMBINATION ESCALATION REMARKS (Multi-Sensor Logic)
 # Updated with MILES Complete Decision Table (May 29, 2026)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
 SENSOR_COMBINATION_REMARKS = {
     # CLASS 0 (SAFE) - 3 conditions
@@ -289,13 +289,13 @@ SENSOR_COMBINATION_REMARKS = {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WET-BULB TEMPERATURE CALCULATION (Heat Stress Indicator)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # Reference: Stull, R. (2011). Wet-Bulb Temperature from Relative Humidity and Air Temperature.
 # Journal of Applied Meteorology and Climatology, 50(11), 2267–2269.
-# Valid range: T = 5–50 °C, RH = 5–100 %
-# Mean absolute error < 0.3 °C (well within DHT-22's ±0.5 °C tolerance)
+# Valid range: T = 5–50 degC, RH = 5–100 %
+# Mean absolute error < 0.3 degC (well within DHT-22's +/-0.5 degC tolerance)
 
 def compute_wet_bulb_temperature(temp_c, humidity_rh):
     """
@@ -305,20 +305,20 @@ def compute_wet_bulb_temperature(temp_c, humidity_rh):
     This single combined value replaces separate temperature and humidity monitoring.
     
     INPUT:
-       temp_c (float): Ambient temperature in °C (from DHT-22)
+       temp_c (float): Ambient temperature in degC (from DHT-22)
        humidity_rh (float): Relative humidity in % (from DHT-22)
     
     OUTPUT:
-       tw (float): Wet-bulb temperature in °C
+       tw (float): Wet-bulb temperature in degC
     
     INTERPRETATION:
-       Tw ≤ 26°C:    GREEN LED    — Safe, body cooling effective
-       Tw 27-30°C:   YELLOW LED   — Caution, heat stress rising
-       Tw > 30°C:    RED LED      — Hazardous, stop non-essential work
+       Tw <= 26degC:    GREEN LED    — Safe, body cooling effective
+       Tw 27-30degC:   YELLOW LED   — Caution, heat stress rising
+       Tw > 30degC:    RED LED      — Hazardous, stop non-essential work
     
     PHYSIOLOGICAL MEANING:
        Wet-bulb answers: "How hard must the body work to stay cool in these conditions?"
-       - Low Tw (≤26):  Sweat evaporates efficiently, core body temp stays stable
+       - Low Tw (<=26):  Sweat evaporates efficiently, core body temp stays stable
        - Mid Tw (27-30): Sweat evaporation slowing, core temp rising with exertion
        - High Tw (>30):  Sweating cannot cool the body, heat exhaustion risk
        - Extreme (>35):  Survivability limit - body cannot maintain safe core temp
@@ -360,9 +360,9 @@ def compute_wet_bulb_temperature(temp_c, humidity_rh):
     except (TypeError, ValueError):
         return np.nan
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # ADVANCED FEATURE ENGINEERING (ML OPTIMIZATION PHASE 1-2)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
 def compute_sensor_ratios(df):
     """
@@ -463,7 +463,7 @@ def detect_sensor_anomalies(X, contamination=0.05):
         anomaly_scores = detector.mahalanobis(X)
         return anomaly_predictions, anomaly_scores
     except Exception as e:
-        print(f"⚠ Anomaly detection failed: {e}. Skipping.")
+        print(f"[WARNING] Anomaly detection failed: {e}. Skipping.")
         return np.zeros(len(X)), np.zeros(len(X))
 
 def flag_sensor_health_issues(df):
@@ -516,9 +516,9 @@ def detect_construction_site(row):
     site_name = row.get('site_name', 'Unknown')
     return site_mapping.get(site_name, 0)
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # REMARKS HELPER FUNCTIONS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
 def get_scenario_remark(scenario_num):
     """Get remark for a specific MILES training scenario (1-8)"""
@@ -558,9 +558,9 @@ def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_statu
         co_status == 'hazardous'
     ])
     
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     # HAZARDOUS COMBINATIONS (Highest priority)
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     if sensors_in_hazardous >= 1:
         # Single hazardous sensors
         if pm25_status == 'hazardous' and pm10_status != 'hazardous' and gas_status != 'hazardous' and co_status != 'hazardous':
@@ -589,9 +589,9 @@ def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_statu
         # Fallback for any hazardous
         return 'any_hazardous', SENSOR_COMBINATION_REMARKS['any_hazardous']
     
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     # CAUTION COMBINATIONS
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     if sensors_in_caution >= 1:
         # Check specific two-sensor caution combinations (dangerous pairs)
         if pm25_status == 'caution' and pm10_status == 'caution':
@@ -621,9 +621,9 @@ def get_sensor_combination_remark(pm25_status, pm10_status, gas_status, co_statu
         if co_status == 'caution':
             return 'single_co_caution', SENSOR_COMBINATION_REMARKS['single_co_caution']
     
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     # SAFE CONDITIONS
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     return 'all_safe', SENSOR_COMBINATION_REMARKS['all_safe']
 
 # Status to alarm label mapping
@@ -668,41 +668,41 @@ def load_and_combine_data():
     LOAD AND COMBINE: MILES Protocol Training Data from 8 Scenarios
     
     SCENARIO-TO-FILE MAPPING:
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     SIMULATED SCENARIOS (Laboratory-controlled, Scenario 1-7):
         These CSV files are generated from MILES simulation protocol with deterministic
         sensor readings and explicit Status column (mapped to alarm_status 0/1/2).
         Each row represents exact simulation conditions for repeatable training.
     
-        SCENARIO 1 (Baseline)      → ~622 rows
+        SCENARIO 1 (Baseline)      -> ~622 rows
                   Sensors normal, no hazards. All readings in baseline ranges.
                   Status: "Safe"
     
-        SCENARIO 2 (Pure Dust)     → ~730 rows
+        SCENARIO 2 (Pure Dust)     -> ~730 rows
                   High PM (100-300 μg/m³), low humidity (36-51%), normal gas.
                   Status: "Hazardous"
     
-        SCENARIO 3 (Misting)       → ~1,054 rows ⭐ CRITICAL FALSE ALARM DEFENSE
+        SCENARIO 3 (Misting)       -> ~1,054 rows [IMPORTANT] CRITICAL FALSE ALARM DEFENSE
                   PM2.5: 355-816 μg/m³ (extreme high)
                   Humidity: 96-100% (extreme high = water droplets)
                   Gas: 86-117 ppm (normal = no combustion)
-                  Status: "Safe (Misting Detected)" → alarm_status 0
+                  Status: "Safe (Misting Detected)" -> alarm_status 0
                   This scenario teaches model to recognize water mist vs real smoke.
     
-        SCENARIO 4 (Fire)          → ~700 rows
+        SCENARIO 4 (Fire)          -> ~700 rows
                   Immediate multi-sensor spike: PM high + Gas high + Temp high.
                   Status: "Hazardous (Fire Detected — Evacuate)"
     
-        SCENARIO 5 (Combustion)    → ~996 rows
+        SCENARIO 5 (Combustion)    -> ~996 rows
                   Gradual rise over 30-60 minutes: PM gradual, Gas gradual, Temp slow.
                   Status: "Hazardous"
     
-        SCENARIO 6 (VOC/Chemical)  → ~804 rows
+        SCENARIO 6 (VOC/Chemical)  -> ~804 rows
                   High gas (139-348 ppm) + high CO regardless of PM level.
                   Status: "Hazardous (Wear Mask)" or "Hazardous (VOC - Wear Mask)"
                   Studies chemical hazards, not visible smoke.
     
-        SCENARIO 7 (High Humidity) → ~673 rows
+        SCENARIO 7 (High Humidity) -> ~673 rows
                   Normal PM + Normal gas + Elevated humidity (60-95%).
                   Status: "Safe"
                   Learns that humidity alone isn't hazard (e.g., aircon condensation).
@@ -714,7 +714,7 @@ def load_and_combine_data():
                 May have some rows with missing alarm_status (for future labeling).
     
     TOTAL EXPECTED: ~20,568 rows (622+730+1054+700+996+804+673+14989)
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     COLUMN STANDARDIZATION:
         Simulation files may have various column name formats:
@@ -845,15 +845,15 @@ def load_data():
         df.to_csv(DATASET_PATH, index=False)
         print("Combined dataset saved.")
     
-    # ─────────────────────────────────────────────────────────────────────────
-    # RECALIBRATE CO VALUES WITH RO = 1822 (Updated May 27, 2026)
-    # ─────────────────────────────────────────────────────────────────────────
-    print("\n🔄 Recalibrating CO values with RO = 1822...")
+    # -------------------------------------------------------------------------
+    # RECALIBRATE CO VALUES WITH RO = 0.3146 (Updated May 27, 2026)
+    # -------------------------------------------------------------------------
+    print("\n[*] Recalibrating CO values with RO = 0.3146...")
     if 'co' in df.columns:
         df['co'] = df['co'].apply(convert_adc_to_ppm_co)
         
         # Recalculate CO-dependent derived features
-        print("📊 Recalculating CO-dependent features...")
+        print("[*] Recalculating CO-dependent features...")
         
         # Sort by timestamp if available
         if 'created_at' in df.columns:
@@ -870,7 +870,7 @@ def load_data():
         df['co_lag_3'] = df['co'].shift(3).fillna(df['co'].iloc[0] if len(df) > 0 else 0).round(2)
         df['co_lag_5'] = df['co'].shift(5).fillna(df['co'].iloc[0] if len(df) > 0 else 0).round(2)
         
-        print("✓ CO recalibration complete")
+        print("[OK] CO recalibration complete")
     
     print(f"\nDataset loaded: {df.shape}")
     print(f"Columns: {df.columns.tolist()}")
@@ -912,18 +912,18 @@ def compute_wet_bulb_feature(df):
     Compute wet-bulb temperature as the 8th training feature
     
     MILES WET-BULB AS LEARNED FEATURE (NEW APPROACH):
-    ───────────────────────────────────────────────────────────────────────────
+    ---------------------------------------------------------------------------
     Instead of hardcoded post-processing thresholds, wet-bulb is now a DIRECT INPUT FEATURE.
     The Random Forest model learns optimal decision boundaries from the 20,568 training rows.
     
     This showcases the advantage of ML over threshold-based systems:
-    - Threshold system: Fixed rules (Tw ≤ 26, 27-30, > 30) applied rigidly
+    - Threshold system: Fixed rules (Tw <= 26, 27-30, > 30) applied rigidly
     - ML system: Learns non-linear interactions between heat stress and other sensors
       Example: Model learns "Tw=28 + Gas=150 + PM=80 is worse than Tw=29 alone"
     
-    FEATURE: wet_bulb (°C)
-      Computed from: Temperature (°C) + Humidity (%) via Stull (2011) formula
-      Range: Typically 5-35 °C in construction environments
+    FEATURE: wet_bulb (degC)
+      Computed from: Temperature (degC) + Humidity (%) via Stull (2011) formula
+      Range: Typically 5-35 degC in construction environments
       Interpretation: Physiological heat stress index (how hard body must work to cool)
     
     TRAINING ADVANTAGE:
@@ -944,7 +944,7 @@ def compute_wet_bulb_feature(df):
             ),
             axis=1
         )
-        print(f"Wet-bulb feature created (range: {df['wet_bulb'].min():.1f}°C - {df['wet_bulb'].max():.1f}°C)")
+        print(f"Wet-bulb feature created (range: {df['wet_bulb'].min():.1f}degC - {df['wet_bulb'].max():.1f}degC)")
     except Exception as e:
         print(f"Warning: Could not compute wet_bulb: {e}")
         # Fallback: default to safe condition
@@ -999,12 +999,12 @@ def apply_misting_detection(row):
     CRITICAL LOGIC: Detect water droplets that cause false PM spike, NOT real dust hazard.
     This is the PRIMARY advantage of MILES over threshold-based systems.
     
-    Rule: IF humidity >= 95% AND gas (MQ-2) is in normal range → must be water misting → SAFE
+    Rule: IF humidity >= 95% AND gas (MQ-2) is in normal range -> must be water misting -> SAFE
     
     Physics: PM2.5 sensor uses laser light scattering. Both water droplets AND dust particles
     scatter light, so sensor cannot distinguish. HUMIDITY context is the differentiator:
-      - High PM + LOW humidity (36-51%)  = Real dust (Scenario 2) → HAZARDOUS
-      - High PM + HIGH humidity (96-100%) = Water droplets (Scenario 3) → SAFE
+      - High PM + LOW humidity (36-51%)  = Real dust (Scenario 2) -> HAZARDOUS
+      - High PM + HIGH humidity (96-100%) = Water droplets (Scenario 3) -> SAFE
     
     GROUND TRUTH FROM PROTOCOL:
       PM2.5: 355–816 μg/m³ (EXTREME, would trigger any threshold)
@@ -1012,8 +1012,8 @@ def apply_misting_detection(row):
       Gas (MQ-2): 86–117 ppm (NORMAL = no combustion, so not fire)
     
     WHY THIS MATTERS:
-      Threshold system: PM > 100 → HAZARDOUS → False evacuation → Alarm fatigue
-      MILES: Recognizes pattern → SAFE → Workers trust device → Real alarms are heeded
+      Threshold system: PM > 100 -> HAZARDOUS -> False evacuation -> Alarm fatigue
+      MILES: Recognizes pattern -> SAFE -> Workers trust device -> Real alarms are heeded
     
     OVERRIDE: This rule overrides ALL other sensor readings. If misting conditions are met,
     the reading is SAFE regardless of other sensor values.
@@ -1039,33 +1039,33 @@ def apply_multi_sensor_escalation(row):
     Determines 3-class output (0=Safe, 1=Caution, 2=Hazardous) based on sensor combinations.
     
     SCENARIO MAPPINGS:
-    ────────────────────────────────────────────────────────────────────────────
-    SCENARIO 1 (Baseline): All sensors normal → 0 (Safe)
-    SCENARIO 2 (Pure Dust): PM high, gas normal, humidity low → 2 (Hazardous)
-    SCENARIO 3 (Misting): PM high, humidity extreme (≥95%), gas normal → 0 (Safe)
-    SCENARIO 4 (Fire): PM extreme + gas high + temp high + all spiking → 2 (Hazardous)
-    SCENARIO 5 (Combustion): Gradual PM rise + gradual gas rise → 2 (Hazardous)
-    SCENARIO 6 (VOC): Gas + CO high, PM moderate → 2 (Hazardous) [gas dominates]
-    SCENARIO 7 (High Humidity): Humidity elevated but PM/gas normal → 0 (Safe)
-    SCENARIO 8 (Field Mix): Real-world combinations → Mixed 0/1/2
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
+    SCENARIO 1 (Baseline): All sensors normal -> 0 (Safe)
+    SCENARIO 2 (Pure Dust): PM high, gas normal, humidity low -> 2 (Hazardous)
+    SCENARIO 3 (Misting): PM high, humidity extreme (>=95%), gas normal -> 0 (Safe)
+    SCENARIO 4 (Fire): PM extreme + gas high + temp high + all spiking -> 2 (Hazardous)
+    SCENARIO 5 (Combustion): Gradual PM rise + gradual gas rise -> 2 (Hazardous)
+    SCENARIO 6 (VOC): Gas + CO high, PM moderate -> 2 (Hazardous) [gas dominates]
+    SCENARIO 7 (High Humidity): Humidity elevated but PM/gas normal -> 0 (Safe)
+    SCENARIO 8 (Field Mix): Real-world combinations -> Mixed 0/1/2
+    ----------------------------------------------------------------------------
     
     WET-BULB TEMPERATURE ESCALATION (NEW):
-    ────────────────────────────────────────────────────────────────────────────
-    Tw ≤ 26 °C:    Safe - Body cooling effective (GREEN LED)
-    Tw 27-30 °C:   Caution - Heat stress rising, monitor exertion (YELLOW LED)
-    Tw > 30 °C:    Hazardous - Stop non-essential work (RED LED)
-    Tw > 35 °C:    Critical - Survivability limit, mandatory evacuation (RED LED + Warning)
+    ----------------------------------------------------------------------------
+    Tw <= 26 degC:    Safe - Body cooling effective (GREEN LED)
+    Tw 27-30 degC:   Caution - Heat stress rising, monitor exertion (YELLOW LED)
+    Tw > 30 degC:    Hazardous - Stop non-essential work (RED LED)
+    Tw > 35 degC:    Critical - Survivability limit, mandatory evacuation (RED LED + Warning)
     
     This tier can ESCALATE from lower hazard levels. For example:
-    - Sensors show "Caution" but Tw > 30 °C → ESCALATE to Hazardous (heat stress override)
-    - Sensors show "Safe" but Tw > 30 °C → ESCALATE to Caution at minimum
+    - Sensors show "Caution" but Tw > 30 degC -> ESCALATE to Hazardous (heat stress override)
+    - Sensors show "Safe" but Tw > 30 degC -> ESCALATE to Caution at minimum
     
     SENSOR DEFINITIONS (Ground Truth):
       PM2.5 (PMS5003): Fine particulates (dust, smoke) - ~16.4% importance
       PM10 (PMS5003): Coarse particulates - ~14.0% importance
-      MQ-2 (Gas): Combustion/smoke/VOC detection - 21.8% importance ⭐ HIGH
-      MQ-7 (CO): Carbon monoxide indicator - 21.4% importance ⭐ HIGH
+      MQ-2 (Gas): Combustion/smoke/VOC detection - 21.8% importance [IMPORTANT] HIGH
+      MQ-7 (CO): Carbon monoxide indicator - 21.4% importance [IMPORTANT] HIGH
       Temperature (DHT-22): Raw ambient temperature for context
       Humidity (DHT-22): Raw relative humidity for context
       Wet-Bulb Temperature: Computed physiological heat stress index (Stull 2011)
@@ -1095,10 +1095,10 @@ def apply_multi_sensor_escalation(row):
     
     # Define thresholds for each sensor (from new MILES Escalation Logic)
     # Reference standards: DENR, RA 8749 IRR, NIOSH RELs, OSHA PELs, DOLE OSHS
-    # ────────────────────────────────────────────────────────────────────────────
+    # ----------------------------------------------------------------------------
     # NOTE: Temperature and Humidity are DISPLAY-ONLY sensors
     # They NEVER drive classification — only annotate alerts when elevated
-    # ────────────────────────────────────────────────────────────────────────────
+    # ----------------------------------------------------------------------------
     
     # PM2.5 thresholds (μg/m³)
     pm2_5_caution_threshold = 51      # Caution range: 51-100
@@ -1133,9 +1133,9 @@ def apply_multi_sensor_escalation(row):
     co_caution = co >= co_caution_threshold and co < co_hazardous_threshold
     co_hazardous = co >= co_hazardous_threshold
     
-    # ════════════════════════════════════════════════════════════════════════════
-    # CRITICAL SAFETY CHECK: ANY SINGLE SENSOR IN HAZARDOUS RANGE → IMMEDIATELY HAZARDOUS
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
+    # CRITICAL SAFETY CHECK: ANY SINGLE SENSOR IN HAZARDOUS RANGE -> IMMEDIATELY HAZARDOUS
+    # ============================================================================
     # This is a SAFETY PRIORITY rule: if we detect ANY hazardous reading, classify as hazardous
     # Do not wait for multi-sensor confirmation - single sensor hazard is dangerous enough
     # Construction-site-specific remarks guide workers to practical protective actions
@@ -1181,31 +1181,31 @@ def apply_multi_sensor_escalation(row):
     if co_caution:
         sensors_in_caution.append('co')
     
-    # ════════════════════════════════════════════════════════════════════════════
-    # NO HAZARD SENSORS: All hazard sensors in safe range → SAFE
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
+    # NO HAZARD SENSORS: All hazard sensors in safe range -> SAFE
+    # ============================================================================
     if len(sensors_in_caution) == 0:
         return 0  # Safe - all hazard sensors normal
     
-    # ════════════════════════════════════════════════════════════════════════════
-    # SINGLE HAZARD SENSOR IN CAUTION RANGE → CAUTION
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
+    # SINGLE HAZARD SENSOR IN CAUTION RANGE -> CAUTION
+    # ============================================================================
     if len(sensors_in_caution) == 1:
         # Single sensor elevated in caution range:
         # PM2.5 alone: Dust present but not confirmed hazard
         # PM10 alone: Coarse dust but need validation
         # Gas alone: Combustible gas detected, monitor
         # CO alone: Carbon monoxide present, check ventilation
-        # All single sensor cases → Caution (monitor situation, not immediate danger)
+        # All single sensor cases -> Caution (monitor situation, not immediate danger)
         return 1  # Caution - single sensor in caution range
     
-    # ════════════════════════════════════════════════════════════════════════════
-    # TWO HAZARD SENSORS IN CAUTION RANGE → Check dangerous combinations
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
+    # TWO HAZARD SENSORS IN CAUTION RANGE -> Check dangerous combinations
+    # ============================================================================
     if len(sensors_in_caution) == 2:
         sensor_pair = set(sensors_in_caution)
         
-        # DANGEROUS COMBINATIONS → HAZARDOUS (from MILES Escalation Logic)
+        # DANGEROUS COMBINATIONS -> HAZARDOUS (from MILES Escalation Logic)
         # These multi-sensor patterns indicate confirmed environmental hazards
         # Based on construction site sensor escalation analysis:
         dangerous_pairs = [
@@ -1224,9 +1224,9 @@ def apply_multi_sensor_escalation(row):
         # These remain Caution-class requiring monitoring, not Hazardous-class escalation
         return 1  # Caution - two sensors elevated but non-dangerous combination
     
-    # ════════════════════════════════════════════════════════════════════════════
-    # THREE OR MORE HAZARD SENSORS IN CAUTION RANGE → HAZARDOUS
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
+    # THREE OR MORE HAZARD SENSORS IN CAUTION RANGE -> HAZARDOUS
+    # ============================================================================
     if len(sensors_in_caution) >= 3:
         # THREE OR MORE HAZARD SENSORS elevated = confirmed multi-layer hazard
         # Examples:
@@ -1238,11 +1238,11 @@ def apply_multi_sensor_escalation(row):
         # Fallback
         air_quality_class = 1  # Caution - default conservative choice
     
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
     # NOTE: Wet-bulb temperature is now a TRAINED FEATURE (not post-processing)
     # The Random Forest model learns how heat stress interacts with air quality.
     # The 'tw' variable computed above is no longer needed for hardcoded escalation.
-    # ════════════════════════════════════════════════════════════════════════════
+    # ============================================================================
     
     return air_quality_class
 
@@ -1255,9 +1255,9 @@ def get_dynamic_remark_for_construction_site(row, class_label):
     guidance that matches their actual environment.
     
     PRIORITY:
-    1. If misting was detected → Use misting remark (Scenario 3)
-    2. If sensor combination pattern detected → Use specific sensor remark
-    3. If matches training simulation pattern → Use that simulation's remark
+    1. If misting was detected -> Use misting remark (Scenario 3)
+    2. If sensor combination pattern detected -> Use specific sensor remark
+    3. If matches training simulation pattern -> Use that simulation's remark
     4. Fallback to class-based remark for field deployment
     """
     
@@ -1283,14 +1283,14 @@ def apply_intelligent_labeling(df):
     APPLY INTELLIGENT LABELING: Convert raw sensor data to 3-class predictions
     
     3-CLASS SYSTEM (Ground Truth from MILES Protocol):
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     CLASS 0 - SAFE (Alarm Status = 0):
       Represented by: SCENARIOS 1, 3, 7, 8 (field mix where safe)
       Meaning: No immediate hazard. Workers can continue operations normally.
       
       SCENARIO 1 (Baseline): All sensors normal
-      SCENARIO 3 (Misting): Extreme PM BUT water droplets (humidity ≥95%, gas <100)
+      SCENARIO 3 (Misting): Extreme PM BUT water droplets (humidity >=95%, gas <100)
       SCENARIO 7 (High Humidity): Normal pollutants + elevated humidity
       SCENARIO 8 (Field): Real-world conditions determined safe
       
@@ -1330,7 +1330,7 @@ def apply_intelligent_labeling(df):
       
       Expected: ~33-36% of total training data
     
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     EXPECTED CLASS DISTRIBUTION (from 20,568 training rows):
       Safe (0):      ~4,600 rows (22.4%)  - Scenarios 1, 3, 7, 8-safe
@@ -1457,43 +1457,43 @@ def preprocess_data(df):
     # Compute wet-bulb temperature feature (Stull 2011 formula)
     df = compute_wet_bulb_feature(df)
     
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     # PHASE 1-2: ADVANCED FEATURE ENGINEERING FOR ML OPTIMIZATION
-    # ═══════════════════════════════════════════════════════════════════════════════
+    # ===============================================================================
     
     print("\n" + "="*70)
     print("ADVANCED FEATURE ENGINEERING (ML Optimization Phase 1-2)")
     print("="*70)
     
     # FEATURE 2: Sensor Ratio Features
-    print("\n✓ Computing sensor ratio features (PM ratio, Gas/CO ratio)...")
+    print("\n[OK] Computing sensor ratio features (PM ratio, Gas/CO ratio)...")
     df = compute_sensor_ratios(df)
     
     # FEATURE 3: Rate-of-Change (Delta) Features
-    print("✓ Computing rate-of-change features (PM delta, Gas delta, acceleration)...")
+    print("[OK] Computing rate-of-change features (PM delta, Gas delta, acceleration)...")
     df = compute_rate_of_change(df)
     
     # FEATURE 5: Lagged Features (Temporal History)
-    print("✓ Computing lagged features (1, 3, 5 minute history)...")
+    print("[OK] Computing lagged features (1, 3, 5 minute history)...")
     df = compute_lagged_features(df, lags=[1, 3, 5])
     
     # FEATURE 6: Volatility Features
-    print("✓ Computing volatility features (rolling std dev)...")
+    print("[OK] Computing volatility features (rolling std dev)...")
     df = compute_volatility(df, window=5)
     
     # FEATURE 7: Trend Direction
-    print("✓ Computing trend direction features (is danger escalating?)...")
+    print("[OK] Computing trend direction features (is danger escalating?)...")
     df = compute_trend_direction(df)
     
     # FEATURE 13: Construction Site Detection
-    print("✓ Detecting construction site for per-site adaptation...")
+    print("[OK] Detecting construction site for per-site adaptation...")
     if 'site_name' in df.columns:
         df['site_id'] = df.apply(detect_construction_site, axis=1)
     else:
         df['site_id'] = 0
     
     # FEATURE 14: Sensor Health Monitoring
-    print("✓ Flagging potential sensor health issues...")
+    print("[OK] Flagging potential sensor health issues...")
     df = flag_sensor_health_issues(df)
     
     # Apply intelligent multi-sensor labeling (3-class)
@@ -1503,7 +1503,7 @@ def preprocess_data(df):
     outliers = detect_and_report_outliers(df, sensor_columns)
     
     # FEATURE 14 (Extended): Anomaly Detection
-    print("\n✓ Performing sensor anomaly detection (Elliptic Envelope)...")
+    print("\n[OK] Performing sensor anomaly detection (Elliptic Envelope)...")
     sensor_cols_for_anomaly = ['pm2_5', 'pm10', 'gas', 'co', 'temp', 'humidity']
     X_temp = df[sensor_cols_for_anomaly].values
     anomaly_preds, anomaly_scores = detect_sensor_anomalies(X_temp, contamination=0.05)
@@ -1563,7 +1563,7 @@ def train_model(X, y):
     TRAIN RANDOM FOREST: 3-Class Model from MILES 8-Scenario Protocol
     
     TRAINING METHODOLOGY:
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     Algorithm: Random Forest Classifier (ensemble of decision trees)
     Rationale: Non-linear multi-sensor decision boundaries learned from scenarios
@@ -1571,12 +1571,12 @@ def train_model(X, y):
     INPUT FEATURES (8 sensors from MILES training protocol):
       Index 0: PM2.5 (μg/m³) - Fine particulates, ~16.4% importance
       Index 1: PM10 (μg/m³) - Coarse particulates, ~14.0% importance
-      Index 2: Temperature (°C) - Raw ambient temperature, ~4.5% importance
+      Index 2: Temperature (degC) - Raw ambient temperature, ~4.5% importance
       Index 3: Humidity (%) - Raw relative humidity, ~18.0% importance
-      Index 4: MQ-2 Gas (ppm) - Combustion/VOC detector, 21.8% importance ⭐
-      Index 5: MQ-7 CO (ppm) - Fire/exhaust indicator, 21.4% importance ⭐
+      Index 4: MQ-2 Gas (ppm) - Combustion/VOC detector, 21.8% importance [IMPORTANT]
+      Index 5: MQ-7 CO (ppm) - Fire/exhaust indicator, 21.4% importance [IMPORTANT]
       Index 6: Time of Day (hour 0-23) - Circadian patterns, ~4.1% importance
-      Index 7: Wet-Bulb Temperature (°C) - Physiological heat stress (Stull 2011), NEW ⭐
+      Index 7: Wet-Bulb Temperature (degC) - Physiological heat stress (Stull 2011), NEW [IMPORTANT]
     
     OUTPUT CLASSES (3-class system from MILES protocol):
       Class 0: SAFE - No hazard, workers continue normally
@@ -1590,12 +1590,12 @@ def train_model(X, y):
       Total rows: 20,568
       - Scenario 1 (Baseline): 622 rows
       - Scenario 2 (Pure Dust): 730 rows
-      - Scenario 3 (Misting): 1,054 rows ← Critical false alarm defense
-      - Scenario 4 (Fire): 700 rows ← Life-threatening pattern
-      - Scenario 5 (Combustion): 996 rows ← Gradual hazard development
-      - Scenario 6 (VOC/Chemical): 804 rows ← Gas-driven danger
-      - Scenario 7 (High Humidity): 673 rows ← Benign humidity context
-      - Scenario 8 (Field Data): 14,989 rows ← Real-world from 5 construction sites
+      - Scenario 3 (Misting): 1,054 rows <- Critical false alarm defense
+      - Scenario 4 (Fire): 700 rows <- Life-threatening pattern
+      - Scenario 5 (Combustion): 996 rows <- Gradual hazard development
+      - Scenario 6 (VOC/Chemical): 804 rows <- Gas-driven danger
+      - Scenario 7 (High Humidity): 673 rows <- Benign humidity context
+      - Scenario 8 (Field Data): 14,989 rows <- Real-world from 5 construction sites
     
     HYPERPARAMETER GRID (135 parameter combinations with 200 trees):
       n_estimators: [200] trees (safety-critical: better minority class detection)
@@ -1620,21 +1620,21 @@ def train_model(X, y):
     
     FEATURE IMPORTANCE (What model learns with 8 features):
       Expected from 20,568 training rows:
-      ⭐ MQ-2 Gas (20-22%) - Detects combustion (Scenarios 4, 5, 6)
-      ⭐ MQ-7 CO (20-22%) - Indicates fire/chemical (Scenarios 4, 6)
-      ✓ Wet-Bulb Temperature (15-18%) - Heat stress interaction with pollution ⭐ NEW
-      ✓ Humidity (12-16%) - Misting pattern recognition (Scenario 3)
-      ✓ PM2.5 (14-16%) - Dust/smoke indicator (Scenarios 2, 3, 4)
-      ✓ PM10 (10-14%) - Coarse dust signature (Scenario 2)
-      ✓ Temperature (3-4%) - Raw thermal context
-      ✓ Time of Day (3-5%) - Circadian patterns in field data (Scenario 8)
+      [IMPORTANT] MQ-2 Gas (20-22%) - Detects combustion (Scenarios 4, 5, 6)
+      [IMPORTANT] MQ-7 CO (20-22%) - Indicates fire/chemical (Scenarios 4, 6)
+      [OK] Wet-Bulb Temperature (15-18%) - Heat stress interaction with pollution [IMPORTANT] NEW
+      [OK] Humidity (12-16%) - Misting pattern recognition (Scenario 3)
+      [OK] PM2.5 (14-16%) - Dust/smoke indicator (Scenarios 2, 3, 4)
+      [OK] PM10 (10-14%) - Coarse dust signature (Scenario 2)
+      [OK] Temperature (3-4%) - Raw thermal context
+      [OK] Time of Day (3-5%) - Circadian patterns in field data (Scenario 8)
       
       Note: Exact percentages determined by model training. Wet-bulb importance
       represents learned interactions between heat stress and pollution hazards.
     
     PERFORMANCE VALIDATION:
     After training, model will report:
-      - Overall accuracy (expected ≥99.95%, using 8 features)
+      - Overall accuracy (expected >=99.95%, using 8 features)
       - Per-class precision, recall, F1-score
       - Confusion matrix showing misclassifications
       - Feature importance ranking (now includes wet-bulb)
@@ -1668,7 +1668,7 @@ def train_model(X, y):
     
     # Hyperparameter tuning with GridSearchCV (135 combinations with 200 trees)
     print("\nPerforming hyperparameter tuning (5-fold CV, 135 parameter combinations with 200 trees)...")
-    print("✓ OPTIMIZATION 1: Adding class_weight='balanced' for Caution class detection...")
+    print("[OK] OPTIMIZATION 1: Adding class_weight='balanced' for Caution class detection...")
     
     param_grid = {
         'n_estimators': [200],  # Force 200 trees for safety-critical minority class detection
@@ -1682,7 +1682,7 @@ def train_model(X, y):
     rf_base = RandomForestClassifier(
         random_state=42, 
         n_jobs=-1,
-        class_weight='balanced'  # ⭐ CRITICAL: Weights Caution class appropriately
+        class_weight='balanced'  # [IMPORTANT] CRITICAL: Weights Caution class appropriately
     )
     
     grid_search = GridSearchCV(
@@ -1699,12 +1699,12 @@ def train_model(X, y):
     model = grid_search.best_estimator_
     
     # OPTIMIZATION 4: Confidence Scoring with predict_proba
-    print("\n✓ OPTIMIZATION 4: Computing confidence scores (predict_proba)...")
+    print("\n[OK] OPTIMIZATION 4: Computing confidence scores (predict_proba)...")
     y_pred = model.predict(X_test_scaled)
-    y_proba = model.predict_proba(X_test_scaled)  # ⭐ Probability for explainability
+    y_proba = model.predict_proba(X_test_scaled)  # [IMPORTANT] Probability for explainability
     
     # OPTIMIZATION 12: Rolling Confidence - Alert if predictions rapidly change
-    print("✓ OPTIMIZATION 12: Computing rolling confidence for unstable predictions...")
+    print("[OK] OPTIMIZATION 12: Computing rolling confidence for unstable predictions...")
     confidence_unstable = compute_rolling_confidence(y_proba, window=3)
     unstable_count = np.sum(confidence_unstable)
     print(f"  Detected {unstable_count} readings with unstable predictions")
@@ -1727,13 +1727,13 @@ def train_model(X, y):
     
     # OPTIMIZATION 1 Validation: Check Caution class performance improvement
     print("\n" + "="*60)
-    print("✓ OPTIMIZATION 1 VALIDATION: Class Balancing Impact")
+    print("[OK] OPTIMIZATION 1 VALIDATION: Class Balancing Impact")
     print("="*60)
     caution_indices = np.where(y_test == 1)[0]
     if len(caution_indices) > 0:
         caution_recall = np.sum(y_pred[caution_indices] == 1) / len(caution_indices)
         print(f"Caution (Class 1) Recall: {caution_recall:.2%}")
-        print(f"  → Expected improvement: >70% (was ~30-40% without balancing)")
+        print(f"  -> Expected improvement: >70% (was ~30-40% without balancing)")
     
     # Feature importance with all 30+ features
     feature_names = [
@@ -1755,7 +1755,7 @@ def train_model(X, y):
     
     # OPTIMIZATION 9: SHAP Explainability
     print("\n" + "="*60)
-    print("✓ OPTIMIZATION 9: SHAP Explainability Analysis")
+    print("[OK] OPTIMIZATION 9: SHAP Explainability Analysis")
     print("="*60)
     
     if SHAP_AVAILABLE:
@@ -1770,7 +1770,7 @@ def train_model(X, y):
             
             shap_values = explainer.shap_values(X_shap_sample)
             
-            print(f"\n✓ SHAP Analysis Complete")
+            print(f"\n[OK] SHAP Analysis Complete")
             print(f"  - Explained {shap_sample_size} test samples")
             print(f"  - Three SHAP value arrays (one per class: Safe, Caution, Hazardous)")
             print(f"  - Use for: Feature importance per-prediction, decision transparency")
@@ -1782,14 +1782,14 @@ def train_model(X, y):
             model.shap_sample = X_shap_sample
             
         except Exception as e:
-            print(f"⚠ SHAP analysis failed: {e}")
+            print(f"[WARNING] SHAP analysis failed: {e}")
     else:
-        print("⚠ SHAP not available. Install with: pip install shap")
+        print("[WARNING] SHAP not available. Install with: pip install shap")
     
     # Package confidence scores with predictions
     prediction_confidence = np.max(y_proba, axis=1)
     
-    print(f"\n✓ OPTIMIZATION 4 RESULTS: Confidence Scores")
+    print(f"\n[OK] OPTIMIZATION 4 RESULTS: Confidence Scores")
     print(f"  - Mean confidence: {prediction_confidence.mean():.2%}")
     print(f"  - Min confidence: {prediction_confidence.min():.2%}")
     print(f"  - Predictions with <80% confidence: {np.sum(prediction_confidence < 0.8)} ({100*np.sum(prediction_confidence < 0.8)/len(prediction_confidence):.1f}%)")
@@ -1878,19 +1878,19 @@ def main():
     training workflow based on the MILES Training Simulation Protocol.
     
     TRAINING PIPELINE SUMMARY:
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     1. DATA LOADING (load_data):
        - Finds all simulation CSV files (Scenarios 1-7) in dataset/ directory
        - Each scenario represents specific environmental conditions:
-         • Scenario 1: Baseline (622 rows) - reference safe state
-         • Scenario 2: Pure Dust (730 rows) - high PM only
-         • Scenario 3: Misting (1,054 rows) - false alarm defense
-         • Scenario 4: Fire (700 rows) - immediate hazard
-         • Scenario 5: Combustion (996 rows) - gradual hazard
-         • Scenario 6: VOC/Chemical (804 rows) - gas-based hazard
-         • Scenario 7: High Humidity (673 rows) - benign humidity spike
-         • Scenario 8: Field Data (14,989 rows) - real-world construction sites
+         * Scenario 1: Baseline (622 rows) - reference safe state
+         * Scenario 2: Pure Dust (730 rows) - high PM only
+         * Scenario 3: Misting (1,054 rows) - false alarm defense
+         * Scenario 4: Fire (700 rows) - immediate hazard
+         * Scenario 5: Combustion (996 rows) - gradual hazard
+         * Scenario 6: VOC/Chemical (804 rows) - gas-based hazard
+         * Scenario 7: High Humidity (673 rows) - benign humidity spike
+         * Scenario 8: Field Data (14,989 rows) - real-world construction sites
        - Total: 20,568 labeled rows for training
     
     2. PREPROCESSING (preprocess_data):
@@ -1902,9 +1902,9 @@ def main():
     
     3. INTELLIGENT LABELING (apply_intelligent_labeling):
        - Applies multi-sensor escalation rules to create 3-class labels:
-         • 0 = Safe: Scenarios 1, 3, 7 (controlled safety + misting defense)
-         • 1 = Caution: Early hazards, single sensor spikes
-         • 2 = Hazardous: Multi-sensor dangerous combinations
+         * 0 = Safe: Scenarios 1, 3, 7 (controlled safety + misting defense)
+         * 1 = Caution: Early hazards, single sensor spikes
+         * 2 = Hazardous: Multi-sensor dangerous combinations
        - Expected distribution: 22% Safe, 42% Caution, 35% Hazardous
     
     4. MODEL TRAINING (train_model):
@@ -1916,11 +1916,11 @@ def main():
     
     5. FEATURE IMPORTANCE ANALYSIS:
        - Top features (learned from scenarios):
-         ✓ MQ-2 Gas: 21.8% importance (detects combustion, VOC)
-         ✓ MQ-7 CO: 21.4% importance (fire tracker, chemical hazard)
-         ✓ Humidity: 18.0% importance (misting detection, context)
-         ✓ PM2.5: 16.4% importance (dust/smoke sensor)
-         ✓ PM10: 14.0% importance (coarse particulates)
+         [OK] MQ-2 Gas: 21.8% importance (detects combustion, VOC)
+         [OK] MQ-7 CO: 21.4% importance (fire tracker, chemical hazard)
+         [OK] Humidity: 18.0% importance (misting detection, context)
+         [OK] PM2.5: 16.4% importance (dust/smoke sensor)
+         [OK] PM10: 14.0% importance (coarse particulates)
     
     6. VALIDATION & REPORTING:
        - Prints per-scenario class distribution
@@ -1933,16 +1933,16 @@ def main():
        - Saves StandardScaler to: models/scaler.pkl
        - These files are loaded by ml_inference_server.py for ESP32 deployment
     
-    ────────────────────────────────────────────────────────────────────────────
+    ----------------------------------------------------------------------------
     
     MILES PROTOCOL COMPLIANCE:
-    ✓ All 8 scenarios present in training data
-    ✓ Misting defense logic (Scenario 3) implemented
-    ✓ Multi-sensor decision rules validated
-    ✓ 3-class output system (Safe/Caution/Hazardous)
-    ✓ Time-of-day feature for circadian patterns
-    ✓ 99.98% accuracy on test set demonstrates learning
-    ✓ Model generalizes to unseen field data (Scenario 8)
+    [OK] All 8 scenarios present in training data
+    [OK] Misting defense logic (Scenario 3) implemented
+    [OK] Multi-sensor decision rules validated
+    [OK] 3-class output system (Safe/Caution/Hazardous)
+    [OK] Time-of-day feature for circadian patterns
+    [OK] 99.98% accuracy on test set demonstrates learning
+    [OK] Model generalizes to unseen field data (Scenario 8)
     
     ARDUINO/ESP32 DEPLOYMENT:
     The trained model (random_forest_model.pkl) is used by:
@@ -1993,105 +1993,105 @@ def main():
     print("\n" + "="*70)
     print("8-SCENARIO TRAINING VALIDATED:")
     print("="*70)
-    print("  ✓ SCENARIO 1 (Baseline): Safe baseline learned")
-    print("  ✓ SCENARIO 2 (Pure Dust): PM-only hazard detection")
-    print("  ✓ SCENARIO 3 (Misting): FALSE ALARM DEFENSE ACTIVE")
+    print("  [OK] SCENARIO 1 (Baseline): Safe baseline learned")
+    print("  [OK] SCENARIO 2 (Pure Dust): PM-only hazard detection")
+    print("  [OK] SCENARIO 3 (Misting): FALSE ALARM DEFENSE ACTIVE")
     print("       High PM + High Humidity = SAFE (not hazard)")
-    print("  ✓ SCENARIO 4 (Fire): Multi-sensor fire signature")
-    print("  ✓ SCENARIO 5 (Combustion): Gradual hazard detection")
-    print("  ✓ SCENARIO 6 (VOC/Chemical): Gas-driven hazard")
-    print("  ✓ SCENARIO 7 (High Humidity): Benign humidity detected")
-    print("  ✓ SCENARIO 8 (Field Data): Real-world generalization")
-    print("\n" + "─"*70)
+    print("  [OK] SCENARIO 4 (Fire): Multi-sensor fire signature")
+    print("  [OK] SCENARIO 5 (Combustion): Gradual hazard detection")
+    print("  [OK] SCENARIO 6 (VOC/Chemical): Gas-driven hazard")
+    print("  [OK] SCENARIO 7 (High Humidity): Benign humidity detected")
+    print("  [OK] SCENARIO 8 (Field Data): Real-world generalization")
+    print("\n" + "-"*70)
     print("KEY FEATURES (Learned from Scenarios):")
-    print("─"*70)
-    print("  • 3-class labels: Safe (0), Caution (1), Hazardous (2)")
-    print("  • Intelligent misting detection (humidity ≥95% override)")
-    print("  • Multi-sensor escalation rules (single vs dangerous pairs)")
-    print("  • Rolling average smoothing (window=3) for noise reduction")
-    print("  • Time-of-day feature for circadian pattern learning")
-    print("  • Outlier detection for anomalous sensor readings")
-    print("  • Source file tracking for data traceability to scenarios")
-    print("\n  ✓ Arduino/ESP32 ready: Model deployed by ml_inference_server.py")
-    print("  ✓ 99.98% accuracy validates all 8 scenarios learned correctly")
-    print("  ✓ Ready for deployment to MILES sensor nodes in field")
+    print("-"*70)
+    print("  * 3-class labels: Safe (0), Caution (1), Hazardous (2)")
+    print("  * Intelligent misting detection (humidity >=95% override)")
+    print("  * Multi-sensor escalation rules (single vs dangerous pairs)")
+    print("  * Rolling average smoothing (window=3) for noise reduction")
+    print("  * Time-of-day feature for circadian pattern learning")
+    print("  * Outlier detection for anomalous sensor readings")
+    print("  * Source file tracking for data traceability to scenarios")
+    print("\n  [OK] Arduino/ESP32 ready: Model deployed by ml_inference_server.py")
+    print("  [OK] 99.98% accuracy validates all 8 scenarios learned correctly")
+    print("  [OK] Ready for deployment to MILES sensor nodes in field")
     
     print("\n" + "="*70)
-    print("🚀 ML OPTIMIZATION IMPROVEMENTS IMPLEMENTED")
+    print("[ROCKET] ML OPTIMIZATION IMPROVEMENTS IMPLEMENTED")
     print("="*70)
     print("\nPhase 1-2: Feature Engineering (11 Optimizations)")
-    print("─"*70)
-    print("  1. ✓ CLASS BALANCING (class_weight='balanced')")
+    print("-"*70)
+    print("  1. [OK] CLASS BALANCING (class_weight='balanced')")
     print("     - Prevents Caution class (1.7%) from being ignored")
     print("     - Expected improvement: 20-30% on Caution recall")
     print()
-    print("  2. ✓ SENSOR RATIO FEATURES")
+    print("  2. [OK] SENSOR RATIO FEATURES")
     print("     - PM10/PM2.5 ratio: Dust vs smoke distinction")
     print("     - Gas/CO ratio: Combustion type identification")
     print("     - PM sum: Total particulate load")
     print()
-    print("  3. ✓ RATE-OF-CHANGE (DELTA) FEATURES")
+    print("  3. [OK] RATE-OF-CHANGE (DELTA) FEATURES")
     print("     - PM25/PM10/Gas/CO deltas: Acceleration detection")
     print("     - Scenario 5 (Combustion) early detection")
     print("     - Expected improvement: Catches gradual rise hazards")
     print()
-    print("  4. ✓ CONFIDENCE SCORING (predict_proba)")
+    print("  4. [OK] CONFIDENCE SCORING (predict_proba)")
     print("     - Probability scores per prediction")
     print("     - Workers see '92% HAZARDOUS' vs '51% CAUTION'")
     print("     - Explainability enhancement")
     print()
-    print("  5. ✓ LAGGED FEATURES (Temporal History)")
+    print("  5. [OK] LAGGED FEATURES (Temporal History)")
     print("     - 1/3/5 minute historical readings")
     print("     - Distinguishes 'sustained hazard' from 'spike'")
     print("     - Trajectory pattern recognition")
     print()
-    print("  6. ✓ VOLATILITY/STD DEV FEATURES")
+    print("  6. [OK] VOLATILITY/STD DEV FEATURES")
     print("     - PM25 and Gas volatility (rolling std)")
     print("     - Stable vs erratic hazard identification")
     print("     - Window=5 minutes for construction context")
     print()
-    print("  7. ✓ TREND DIRECTION FEATURES")
+    print("  7. [OK] TREND DIRECTION FEATURES")
     print("     - PM and Gas trend (+1 rising, -1 falling, 0 stable)")
     print("     - Acceleration flags for rapid changes")
     print("     - Early fire vs late fire distinction")
     print()
-    print("  9. ✓ SHAP EXPLAINABILITY")
+    print("  9. [OK] SHAP EXPLAINABILITY")
     if SHAP_AVAILABLE:
         print("     - SHAP TreeExplainer initialized")
         print("     - Per-prediction feature attribution")
         print("     - Decision transparency for supervisors")
     else:
-        print("     - ⚠ SHAP not installed (install: pip install shap)")
+        print("     - [WARNING] SHAP not installed (install: pip install shap)")
     print()
-    print(" 12. ✓ ROLLING CONFIDENCE MONITORING")
+    print(" 12. [OK] ROLLING CONFIDENCE MONITORING")
     print("     - Alerts when predictions rapidly change")
     print("     - Detects potential sensor instability")
     print("     - Window=3 predictions")
     print()
-    print(" 13. ✓ CONSTRUCTION SITE ADAPTATION")
+    print(" 13. [OK] CONSTRUCTION SITE ADAPTATION")
     print("     - Per-site thresholds support (Temfacil, Warehouse, etc.)")
     print("     - Site ID feature for model learning")
     print("     - Future: Recalibrate after 2 weeks field deployment")
     print()
-    print(" 14. ✓ SENSOR HEALTH MONITORING")
+    print(" 14. [OK] SENSOR HEALTH MONITORING")
     print("     - Detects stuck sensors (no change >30 min)")
     print("     - Anomaly detection (Elliptic Envelope)")
     print("     - Sensor drift/failure flags")
     print()
-    print("─"*70)
+    print("-"*70)
     print(f"Total Features: {len(feature_names)} (was 8, now {len(feature_names)})")
     print(f"Feature Importance: Gas/CO > Wet-Bulb > Ratios/Deltas > Lagged")
     print(f"Class Imbalance Addressed: Caution recall should improve >70%")
-    print("─"*70)
+    print("-"*70)
     
     print("\n" + "="*70)
     print("DEPLOYMENT READY")
     print("="*70)
-    print(f"\n✓ Model: {MODEL_SAVE_PATH}")
-    print(f"✓ Scaler: {SCALER_SAVE_PATH}") 
-    print(f"✓ Dataset: {output_path}")
-    print(f"✓ Features: {len(feature_names)} optimized features")
-    print(f"✓ Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+    print(f"\n[OK] Model: {MODEL_SAVE_PATH}")
+    print(f"[OK] Scaler: {SCALER_SAVE_PATH}") 
+    print(f"[OK] Dataset: {output_path}")
+    print(f"[OK] Features: {len(feature_names)} optimized features")
+    print(f"[OK] Accuracy: {accuracy_score(y_test, y_pred):.4f}")
     print("\nNext: Deploy to ESP32 MILES device via ml_inference_server.py")
     print("="*70 + "\n")
 

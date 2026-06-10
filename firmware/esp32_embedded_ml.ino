@@ -557,8 +557,8 @@ float MQADCToVoltage(int raw_adc) {
 
 // Voltage to Sensor Resistance conversion (Step 2)
 float MQVoltageToRs(float voltage) {
-    if (voltage <= 0) voltage = 0.001;
-    return ((MQ2_VIN - voltage) / voltage) * MQ2_RL;
+    if (voltage >= MQ2_VIN) voltage = MQ2_VIN - 0.001;  // Prevent denominator from being zero
+    return (voltage / (MQ2_VIN - voltage)) * MQ2_RL;    // Correct voltage divider formula
 }
 
 // Legacy resistance calculation (deprecated, kept for compatibility)
@@ -608,6 +608,29 @@ float MQGetLPGPpmFromRs(float rs, float ro) {
 // Legacy smoke PPM calculation (deprecated)
 float MQGetSmokePpm(float rs_ro_ratio) {
     return pow(10.0, ((log10(rs_ro_ratio) - SmokeCurve[1]) / SmokeCurve[2]) + SmokeCurve[0]);
+}
+
+// Helper function to format and print LCD fields with proper clearing
+// Ensures old characters are erased when new values are shorter
+void lcdPrintField(int col, int row, String label, int value, int fieldWidth) {
+    String formatted = label + String(value);
+    // Pad with spaces to ensure full field width (clears old characters)
+    while (formatted.length() < fieldWidth) {
+        formatted += " ";
+    }
+    lcd.setCursor(col, row);
+    lcd.print(formatted.substring(0, fieldWidth));  // Limit to field width
+}
+
+// Helper for floating point values
+void lcdPrintFieldFloat(int col, int row, String label, float value, int decimals, int fieldWidth) {
+    String formatted = label + String(value, decimals);
+    // Pad with spaces to ensure full field width (clears old characters)
+    while (formatted.length() < fieldWidth) {
+        formatted += " ";
+    }
+    lcd.setCursor(col, row);
+    lcd.print(formatted.substring(0, fieldWidth));  // Limit to field width
 }
 
 void scrollRemark(String msg) {
@@ -671,12 +694,12 @@ bool writeToSDCard(const String& timestamp, float pm2_5, float pm10,
         if (file) {
             String line = "";
             line += timestamp + ",";
-            line += String(pm2_5, 1) + ",";
-            line += String(pm10, 1) + ",";
-            line += String(temp, 1) + ",";
-            line += String(hum, 1) + ",";
-            line += String(gas, 1) + ",";
-            line += String(co, 1) + ",";
+            line += String(pm2_5, 2) + ",";
+            line += String(pm10, 2) + ",";
+            line += String(temp, 2) + ",";
+            line += String(hum, 2) + ",";
+            line += String(gas, 2) + ",";
+            line += String(co, 2) + ",";
             line += String(cls) + ",";
             line += remark + "\n";
             
@@ -883,12 +906,13 @@ void loop() {
         digitalWrite(RED_LED, (lcdRemark.startsWith("HAZARDOUS")));
         digitalWrite(BUZZER_PIN, (lcdRemark.startsWith("HAZARDOUS")) ? HIGH : LOW);
 
-        lcd.setCursor(0, 0); lcd.print("P2.5:"); lcd.print((int)data.pm2_5); lcd.print("  ");
-        lcd.setCursor(11, 0); lcd.print("P10:"); lcd.print((int)data.pm10); lcd.print("  ");
-        lcd.setCursor(0, 1); lcd.print("GAS:"); lcd.print((int)data.gas); lcd.print("  ");
-        lcd.setCursor(11, 1); lcd.print("CO :"); lcd.print((int)data.co); lcd.print("  ");
-        lcd.setCursor(0, 2); lcd.print("T:"); lcd.print(data.temp, 1); lcd.print("C ");
-        lcd.setCursor(11, 2); lcd.print("H:"); lcd.print(data.hum, 0); lcd.print("% ");
+        // Display sensors with proper field width to clear old characters when values shrink
+        lcdPrintField(0, 0, "P2.5:", (int)data.pm2_5, 10);      // 10 chars: clears when 355→82
+        lcdPrintField(11, 0, "P10:", (int)data.pm10, 9);         // 9 chars for right half
+        lcdPrintField(0, 1, "GAS:", (int)data.gas, 10);
+        lcdPrintField(11, 1, "CO :", (int)data.co, 9);
+        lcdPrintFieldFloat(0, 2, "T:", data.temp, 1, 8);         // 8 chars including "C"
+        lcdPrintFieldFloat(11, 2, "H:", data.hum, 0, 9);         // 9 chars including "%"
     }
 
     if (millis() - warmupStartMs < WARMUP_MS) {
